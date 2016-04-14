@@ -24,7 +24,7 @@ public class DSBlog {
     }
 
     private static void printCommands(){
-        println("============================================");
+        println("===================================================");
         println("post(p) <message>");
         println("  - Post a message in DS-blog\n");
 
@@ -33,7 +33,7 @@ public class DSBlog {
 
         println("sync(s) <datacenter>");
         println("  - Synchronize with Datacenter");
-        println( "============================================");
+        println( "=================================================");
     }
 
 

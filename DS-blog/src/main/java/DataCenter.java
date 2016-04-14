@@ -6,6 +6,10 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.Channel;
+
 
 /**
  * Created by xuanwang on 4/12/16.
@@ -70,6 +74,10 @@ public class DataCenter extends Thread{
     }
 
     public void post(String message){
+
+    }
+
+    private static void processMessage(){
 
     }
 
