@@ -14,4 +14,10 @@ public class Log {
     public Event getEvent(){
         return null;
     }
+
+    public void printLog(){
+        for(Event e: eventList){
+            System.out.println(String.valueOf(e));
+        }
+    }
 }

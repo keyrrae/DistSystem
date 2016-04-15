@@ -63,10 +63,11 @@ public class DataCenter extends Thread{
     public void lookup(int client){
         // Serialize log
         // send to client
+
     }
 
     public void lookup(){
-
+        log.printLog();
     }
 
     public void run(){
