@@ -1,7 +1,7 @@
 /**
  * Created by xuanwang on 4/12/16.
  */
-public class Event {
+class Event {
     private long timestamp;
     private String message;
 

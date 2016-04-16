@@ -5,7 +5,6 @@ public class Client {
 
     public Client(int location){
         // find the nearest data center
-        // 5
 
     }
 

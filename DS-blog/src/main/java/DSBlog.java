@@ -82,10 +82,12 @@ public class DSBlog {
                     dc.post(message);
                 }
             }
+
             else if(blogArgs[0].equals("l") || blogArgs[0].equals("lookup")){
                 println("lookup");
                 dc.lookup();
             }
+
             else if(blogArgs[0].equals("s") || blogArgs[0].equals("sync")){
                 if(blogArgs.length == 1){
                     println("Please enter the hostname of the data center you want to sync with");

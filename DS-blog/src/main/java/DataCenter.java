@@ -14,14 +14,16 @@ import com.rabbitmq.client.Channel;
 /**
  * Created by xuanwang on 4/12/16.
  */
-public class DataCenter extends Thread{
+class DataCenter extends Thread{
     private HashMap<Long, Long> timeVector;
     private ArrayList<ArrayList<Long>> timeTable;
     private Log log;
     private String localIP;
     private HashMap<String, InetSocketAddress> serverMap;
+    private JSONsender jsonSender;
+    private JSONreceiver jsoReceiver;
 
-    public DataCenter(String configFile){
+    DataCenter(String configFile){
 
         serverMap = new HashMap<String, InetSocketAddress>();
 
@@ -52,11 +54,29 @@ public class DataCenter extends Thread{
         log = new Log();
     }
 
-    public void sync(String hostname){
-        //send sync request to hostname
-        //receive log items from DC
-        //update log
-        //update timetable
+    public void run(){
+
+    }
+
+    void onReceive(){
+
+    }
+
+    void sync(String hostname){
+        // check if hostname is available
+        if(!serverMap.containsKey(hostname)){
+            System.out.println("hostname does not exist.");
+            return;
+        }
+
+
+
+
+
+        // send sync request to hostname
+        // receive log items from DC
+        // update log and update timetable
+        onReceive();
 
     }
 
@@ -70,16 +90,13 @@ public class DataCenter extends Thread{
         log.printLog();
     }
 
-    public void run(){
+
+    public void post(String msgStr){
+        Message msg = new Message(log, timeTable);
+
 
     }
 
-    public void post(String message){
 
-    }
-
-    private static void processMessage(){
-
-    }
 
 }

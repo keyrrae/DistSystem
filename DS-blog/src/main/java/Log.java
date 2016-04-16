@@ -4,18 +4,27 @@ import java.util.List;
 /**
  * Created by xuanwang on 4/12/16.
  */
-public class Log {
-    private List<Event> eventList;
+class Log {
+    private ArrayList<Event> eventList;
 
-    public Log(){
+    Log(){
         eventList = new ArrayList<Event>();
+    }
+
+    Log(Log baseLog){
+        eventList = new ArrayList<Event>();
+        for(Event e: baseLog.getEvents()){
+            eventList.add(e);
+        }
     }
 
     public Event getEvent(){
         return null;
     }
 
-    public void printLog(){
+    public ArrayList<Event> getEvents() { return eventList; }
+
+    void printLog(){
         for(Event e: eventList){
             System.out.println(String.valueOf(e));
         }
