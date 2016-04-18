@@ -20,9 +20,30 @@ public class MessageWrapper {
         this.messageClass = className;
     }
 
-    
-    public Message getInnerMessage() throws ClassNotFoundException{
-        Message innerMsg = Common.deserialize(this.serializedInnerMessage, Common.getClassFromString(this.messageClass));
+    /**
+     * 
+     * Description: Get the content(in the form of supertype Message) of innerMessage. Cast it to ClientRequestMessage,
+     * SyncRequestMessage etc. for further usage.
+     * 
+     * @return
+     * @throws ClassNotFoundException
+     *             Message
+     */
+    public Message getInnerMessage() throws ClassNotFoundException {
+        Message innerMsg = Common
+                .deserialize(this.serializedInnerMessage, Common.getClassFromString(this.messageClass));
         return innerMsg;
+    }
+
+    /**
+     * 
+     * Description: Get the Class(ClientRequest, SyncRequest, SyncResponse) of the innerMessage contained
+     * 
+     * @return
+     * @throws ClassNotFoundException
+     *             Class
+     */
+    public Class getInnerMessageClass() throws ClassNotFoundException {
+        return Common.getClassFromString(this.messageClass);
     }
 }

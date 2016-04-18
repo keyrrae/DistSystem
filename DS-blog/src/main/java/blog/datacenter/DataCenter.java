@@ -1,11 +1,18 @@
 package blog.datacenter;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.log4j.Logger;
+
 import blog.logs.EventRecord;
+import blog.message.ClientRequestMessage;
+import blog.message.SyncRequestMessage;
+import blog.message.SyncResponseMessage;
 import blog.misc.Common;
+import blog.misc.MessageWrapper;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -22,7 +29,14 @@ public class DataCenter extends Thread {
     private List<Post> listOfPost;
     private List<EventRecord> logs;
 
+    // DataCenter name for routing
     private String dataCenterName;
+    // Index in timetable
+    private int dataCenterIndex;
+
+    // Mapping between dataCenterName to DataCenterIndex on timetable
+    private HashMap<String, Integer> dataCenterNameToIndex;
+
     private String logPropagationDirectQueueName;
     private String clientMessageDirectQueueName;
 
@@ -32,6 +46,8 @@ public class DataCenter extends Thread {
     private Channel channel;
     // Consumer for client message and log message
     private QueueingConsumer consumer;
+
+    private static Logger logger = Logger.getLogger(DataCenter.class);
 
     /**
      * 
@@ -73,17 +89,77 @@ public class DataCenter extends Thread {
 
     }
 
-    public DataCenter(String dataCenterName) throws IOException, TimeoutException {
+    public DataCenter(String dataCenterName, HashMap<String, Integer> dataCenterNameToIndex) throws IOException,
+            TimeoutException {
         factory = new ConnectionFactory();
         factory.setHost(Common.MQ_HOST_NAME);
         connection = factory.newConnection();
         channel = connection.createChannel();
-        
+
         this.dataCenterName = dataCenterName;
+        this.dataCenterNameToIndex = dataCenterNameToIndex;
+        timeTable = new TimeTable(dataCenterNameToIndex);
+
         this.logPropagationDirectQueueName = Common.getDatacenterLogPropagationDirectQueueName(dataCenterName);
         this.clientMessageDirectQueueName = Common.getClientMessageReceiverDirectQueueName(dataCenterName);
     }
 
+    /**
+     * Datacenter run method, wait for incoming client request
+     */
+    public void run() {
+        MessageWrapper wrapper = null;
+        QueueingConsumer.Delivery delivery;
+        logger.info("Data Center: " + this.dataCenterName + " is Running");
+        try {
+            this.bindToClientExchange();
+        } catch (Exception e) {
+            logger.error(this.dataCenterName + " binding to client exchange failed");
+            e.printStackTrace();
+            System.exit(-1);
+        }
+
+        try {
+            this.bindToLogExchange();
+        } catch (Exception e1) {
+            logger.error(this.dataCenterName + " binding to log exchange failed");
+            e1.printStackTrace();
+            System.exit(-1);
+        }
+
+        // Receive Log
+        try {
+            while (true) {
+                delivery = consumer.nextDelivery();
+                if (delivery != null) {
+                    String msg = new String(delivery.getBody());
+                    wrapper = Common.deserialize(msg, MessageWrapper.class);
+                }
+                if (wrapper != null) {
+                    Class classType = wrapper.getInnerMessageClass();
+                    if (classType.equals(SyncRequestMessage.class)) {
+                        SyncRequestMessage syncRequestMessage = (SyncRequestMessage) wrapper.getInnerMessage();
+                        logger.info("SyncRequestMessage");
+                    }
+                    else if (classType.equals(SyncResponseMessage.class)) {
+                        SyncResponseMessage syncResponseMessage = (SyncResponseMessage) wrapper.getInnerMessage();
+                        logger.info("SyncResponseMessage");
+                    }
+                    else if (classType.equals(ClientRequestMessage.class)) {
+                        ClientRequestMessage clientRequestMessage = (ClientRequestMessage) wrapper.getInnerMessage();
+                        logger.info("ClientRequestMessage");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) throws IOException, TimeoutException {
+        DataCenter dc = new DataCenter("dc1", new HashMap<String, Integer>());
+        new Thread(dc).start();
+    }
     // public DataCenter(String configFile) {
     //
     // BufferedReader br;
@@ -106,10 +182,6 @@ public class DataCenter extends Thread {
     //
     // }
     // }
-
-    public void run() {
-
-    }
 
     // void onReceive() {
     //

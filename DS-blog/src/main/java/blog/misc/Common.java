@@ -46,8 +46,7 @@ public class Common {
         Class<?> cls = Class.forName(s);
         return cls;
     }
-    
-    
+
     // Datacenter as receiver
     public static String getClientMessageReceiverDirectQueueName(String dataCenterName) {
         return dataCenterName + ".clientMessageReceiver.direct.queue";
@@ -57,7 +56,9 @@ public class Common {
         return dataCenterName + ".logPropagation.direct.queue";
     }
 
-
-
+    // Client as a receiver
+    public static String getDatacenterFeedbackMessageReceiverDirectQueue(String clientName) {
+        return clientName + ".datacenterFeedbackMessageReceiver.direct.queue";
+    }
 
 }
