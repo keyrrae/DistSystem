@@ -1,3 +1,4 @@
+package blog.client;
 /**
  * Created by xuanwang on 4/12/16.
  */
