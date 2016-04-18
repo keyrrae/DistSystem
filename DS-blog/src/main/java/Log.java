@@ -1,31 +1,33 @@
 import java.util.ArrayList;
 import java.util.List;
 
+import blog.logs.EventRecord;
+
 /**
  * Created by xuanwang on 4/12/16.
  */
 class Log {
-    private ArrayList<Event> eventList;
+    private ArrayList<EventRecord> eventList;
 
     Log(){
-        eventList = new ArrayList<Event>();
+        eventList = new ArrayList<EventRecord>();
     }
 
     Log(Log baseLog){
-        eventList = new ArrayList<Event>();
-        for(Event e: baseLog.getEvents()){
+        eventList = new ArrayList<EventRecord>();
+        for(EventRecord e: baseLog.getEvents()){
             eventList.add(e);
         }
     }
 
-    public Event getEvent(){
+    public EventRecord getEvent(){
         return null;
     }
 
-    public ArrayList<Event> getEvents() { return eventList; }
+    public ArrayList<EventRecord> getEvents() { return eventList; }
 
     void printLog(){
-        for(Event e: eventList){
+        for(EventRecord e: eventList){
             System.out.println(String.valueOf(e));
         }
     }

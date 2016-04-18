@@ -18,7 +18,7 @@ public class JSONsender extends Thread {
 
     @Override
     public void run() {
-
+        
         factory = new ConnectionFactory();
         factory.setHost("localhost");
         factory.setPort(5676);

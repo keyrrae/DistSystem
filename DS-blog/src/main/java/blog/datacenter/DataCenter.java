@@ -1,104 +1,147 @@
 package blog.datacenter;
-import JSONreceiver;
-import JSONsender;
-import Log;
-import Message;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
 
+import blog.logs.EventRecord;
+import blog.misc.Common;
+
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.QueueingConsumer;
 
 /**
  * Created by xuanwang on 4/12/16.
  */
-class DataCenter extends Thread{
-    private HashMap<Long, Long> timeVector;
-    private ArrayList<ArrayList<Long>> timeTable;
-    private Log log;
-    private String localIP;
-    private HashMap<String, InetSocketAddress> serverMap;
-    private JSONsender jsonSender;
-    private JSONreceiver jsoReceiver;
+public class DataCenter extends Thread {
 
-    DataCenter(String configFile){
+    private TimeTable timeTable;
 
-        serverMap = new HashMap<String, InetSocketAddress>();
+    private List<Post> listOfPost;
+    private List<EventRecord> logs;
 
-        BufferedReader br;
-        try {
-            br = new BufferedReader(new FileReader(configFile));
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
+    private String dataCenterName;
+    private String logPropagationDirectQueueName;
+    private String clientMessageDirectQueueName;
 
-            while (line != null) {
-                String[] config = line.trim().split("\\s+");
-                final InetSocketAddress server = new InetSocketAddress(config[1], Integer.parseInt(config[2]));
-                serverMap.put(config[0], server);
+    // Below for connecting MQ
+    private ConnectionFactory factory;
+    private Connection connection;
+    private Channel channel;
+    // Consumer for client message and log message
+    private QueueingConsumer consumer;
 
-                line = br.readLine();
-            }
-
-        } catch(FileNotFoundException e){
-            System.out.println("cannot find file");
-        } catch(IOException e){
-
-            System.out.println("IO:cannot find file");
-
+    /**
+     * 
+     * Description: Connect to log propagation exchange with routing key: this.dataCenterName
+     * 
+     * @throws Exception
+     *             void
+     */
+    public void bindToLogExchange() throws Exception {
+        channel.exchangeDeclare(Common.LOG_DIRECT_EXCHANGE_NAME, "direct");
+        channel.queueDeclare(this.logPropagationDirectQueueName, false, false, false, null);
+        // 使用logPropagationDirectQueueName这个Queue绑定到Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME这个exchange上，routing
+        // key为dataCenterName
+        channel.queueBind(this.logPropagationDirectQueueName, Common.LOG_DIRECT_EXCHANGE_NAME,
+                this.dataCenterName);
+        if (consumer == null) {
+            consumer = new QueueingConsumer(channel);
         }
-
-        timeVector = new HashMap<Long, Long>();
-        timeTable = new ArrayList<ArrayList<Long>>();
-        log = new Log();
+        channel.basicConsume(this.logPropagationDirectQueueName, true, consumer);
     }
 
-    public void run(){
+    /**
+     * 
+     * Description: Connect to client message exchange with routing key: this.dataCenterName
+     * 
+     * @throws Exception
+     *             void
+     */
+    public void bindToClientExchange() throws Exception {
+        channel.exchangeDeclare(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, "direct");
+        channel.queueDeclare(this.clientMessageDirectQueueName, false, false, false, null);
 
-    }
-
-    void onReceive(){
-
-    }
-
-    void sync(String hostname){
-        // check if hostname is available
-        if(!serverMap.containsKey(hostname)){
-            System.out.println("hostname does not exist.");
-            return;
+        channel.queueBind(this.clientMessageDirectQueueName, Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME,
+                this.dataCenterName);
+        if (consumer == null) {
+            consumer = new QueueingConsumer(channel);
         }
-
-
-
-
-
-        // send sync request to hostname
-        // receive log items from DC
-        // update log and update timetable
-        onReceive();
+        channel.basicConsume(clientMessageDirectQueueName, true, consumer);
 
     }
 
-    public void lookup(int client){
-        // Serialize log
-        // send to client
+    public DataCenter(String dataCenterName) throws IOException, TimeoutException {
+        factory = new ConnectionFactory();
+        factory.setHost(Common.MQ_HOST_NAME);
+        connection = factory.newConnection();
+        channel = connection.createChannel();
+        
+        this.dataCenterName = dataCenterName;
+        this.logPropagationDirectQueueName = Common.getDatacenterLogPropagationDirectQueueName(dataCenterName);
+        this.clientMessageDirectQueueName = Common.getClientMessageReceiverDirectQueueName(dataCenterName);
+    }
+
+    // public DataCenter(String configFile) {
+    //
+    // BufferedReader br;
+    // try {
+    // br = new BufferedReader(new FileReader(configFile));
+    // StringBuilder sb = new StringBuilder();
+    // String line = br.readLine();
+    //
+    // while (line != null) {
+    // String[] config = line.trim().split("\\s+");
+    //
+    // line = br.readLine();
+    // }
+    //
+    // } catch (FileNotFoundException e) {
+    // System.out.println("cannot find file");
+    // } catch (IOException e) {
+    //
+    // System.out.println("IO:cannot find file");
+    //
+    // }
+    // }
+
+    public void run() {
 
     }
 
-    public void lookup(){
-        log.printLog();
-    }
-
-
-    public void post(String msgStr){
-        Message msg = new Message(log, timeTable);
-
-
-    }
-
-
+    // void onReceive() {
+    //
+    // }
+    //
+    // void sync(String hostname) {
+    // // check if hostname is available
+    // if (!serverMap.containsKey(hostname)) {
+    // System.out.println("hostname does not exist.");
+    // return;
+    // }
+    //
+    // // send sync request to hostname
+    // // receive log items from DC
+    // // update log and update timetable
+    // onReceive();
+    //
+    // }
+    //
+    // public void lookup(int client) {
+    // // Serialize log
+    // // send to client
+    //
+    // }
+    //
+    // public void lookup() {
+    // log.printLog();
+    // }
+    //
+    // public void post(String msgStr) {
+    // Message msg = new Message(log, timeTable);
+    //
+    // }
 
 }
