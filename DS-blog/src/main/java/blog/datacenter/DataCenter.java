@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 import blog.logs.EventRecord;
@@ -34,6 +35,7 @@ public class DataCenter extends Thread {
 
     private PriorityQueue<Post> listOfPost;
     private List<EventRecord> logs;
+    private long timeStamp;
 
     // DataCenter name for routing
     private String dataCenterName;
@@ -57,10 +59,12 @@ public class DataCenter extends Thread {
 
     public DataCenter(String dataCenterName, HashMap<String, Integer> dataCenterNameToIndex) throws IOException,
             TimeoutException {
+        BasicConfigurator.configure();
         factory = new ConnectionFactory();
         factory.setHost(Common.MQ_HOST_NAME);
         connection = factory.newConnection();
         channel = connection.createChannel();
+        timeStamp = 0;
 
         this.dataCenterName = dataCenterName;
         this.dataCenterNameToIndex = dataCenterNameToIndex;
@@ -182,7 +186,10 @@ public class DataCenter extends Thread {
      *            void
      */
     private void handleClientRequestPostMessage(ClientRequestPostMessage message) {
-        listOfPost.add(message.getPost());
+        timeStamp++;
+        Post post = message.getPost();
+        post.setTimeStamp(timeStamp);
+        listOfPost.add(post);
     }
 
     /**

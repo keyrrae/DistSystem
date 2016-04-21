@@ -1,6 +1,7 @@
 package blog.client;
 
 import java.io.IOException;
+import java.util.Scanner;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.log4j.BasicConfigurator;
@@ -18,6 +19,8 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
+
+import static java.lang.System.exit;
 
 /**
  * Created by xuanwang on 4/12/16.
@@ -79,7 +82,7 @@ public class Client implements Runnable {
         } catch (Exception e) {
             logger.error("Client: " + this.clientName + " bind to client request exchange failed");
             e.printStackTrace();
-            System.exit(-1);
+            exit(-1);
         }
 
         logger.info("Client: " + this.clientName + " is Running");
@@ -117,7 +120,31 @@ public class Client implements Runnable {
         for (Post p : message.getListOfPost()) {
             System.out.println(p.getContent());
         }
+        printf("> ");
     }
+
+    private static void println(String line){
+        System.out.println(line);
+    }
+
+    private static void printf(String line){
+        System.out.printf(line);
+    }
+
+    private static void printCommands(){
+        println("===================================================");
+        println("post(p) <message>");
+        println("  - Post a message in DS-blog\n");
+
+        println("lookup(l)");
+        println("  - Display the posts in DS-blog in casual order\n");
+
+        println("sync(s) <datacenter>");
+        println("  - Synchronize with Datacenter");
+        println( "=================================================");
+    }
+
+
 
     public static void main(String[] args) throws IOException, TimeoutException, InterruptedException {
         Client c = new Client("client1");
@@ -129,5 +156,67 @@ public class Client implements Runnable {
         logger.info("Request look up");
         c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, "dc1"));
 
+        printf("> ");
+        while(true){
+            Scanner scan = new Scanner(System.in);
+
+            String command = scan.nextLine();
+            command = command.trim();
+            String[] blogArgs = command.split("\\s+");
+
+            blogArgs[0] = blogArgs[0].toLowerCase();
+
+            if(blogArgs[0].equals("p") || blogArgs[0].equals("post")){
+
+                if(blogArgs.length == 1){
+                    println("Please enter your message");
+                    continue;
+                }
+                else{
+                    StringBuilder sb = new StringBuilder();
+                    char[] commandChars = command.toCharArray();
+                    int start;
+                    if(blogArgs[0].equals("p")){
+                        start = 2;
+                    }
+                    else{
+                        start = 4;
+                    }
+                    while(commandChars[start] == ' ' || commandChars[start] == '\t'){
+                        start++;
+                    }
+                    for(int i = start; i < commandChars.length; i++){
+
+                            sb.append(commandChars[i]);
+                    }
+                    String message = sb.toString();
+                    c.sendMessageToDataCenter(new ClientRequestPostMessage(c.clientName, "dc1", new Post(message)));
+                    printf("> ");
+                }
+            }
+
+            else if(blogArgs[0].equals("l") || blogArgs[0].equals("lookup")){
+                c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, "dc1"));
+            }
+
+            else if(blogArgs[0].equals("s") || blogArgs[0].equals("sync")){
+                if(blogArgs.length == 1){
+                    println("Please enter the hostname of the data center you want to sync with");
+                    printf("> ");
+                    continue;
+                }
+                else {
+                    println("synchronizing with " + blogArgs[1]);
+                    //c.sendMessageToDataCenter(new Cli);
+                }
+            }
+            else if(blogArgs[0].equals("e") || blogArgs[0].equals("exit")){
+                println("exiting...");
+                exit(0);
+            }
+            else {
+                printCommands();
+            }
+        } // while
     }
 }
