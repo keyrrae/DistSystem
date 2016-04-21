@@ -152,10 +152,13 @@ public class DataCenter extends Thread {
                     if (classType.equals(SyncRequestMessage.class)) {
                         SyncRequestMessage message = (SyncRequestMessage) wrapper.getInnerMessage();
                         logger.info("SyncRequestMessage");
+                        handleDataCenterSyncRequestMessage(message);
                     }
+
                     else if (classType.equals(SyncResponseMessage.class)) {
                         SyncResponseMessage message = (SyncResponseMessage) wrapper.getInnerMessage();
                         logger.info("SyncResponseMessage");
+                        handleDataCenterResponseMessage(message);
                     }
                     else if (classType.equals(ClientRequestLookUpMessage.class)) {
                         ClientRequestLookUpMessage message = (ClientRequestLookUpMessage) wrapper.getInnerMessage();
@@ -206,7 +209,7 @@ public class DataCenter extends Thread {
         this.sendResponseToClient(responseMessage);
     }
 
-    /**
+     /**
      * 
      * Description: Send response message to client
      * 
@@ -216,6 +219,25 @@ public class DataCenter extends Thread {
      */
     public void sendResponseToClient(ClientDataCenterMessage message) throws IOException {
         channel.basicPublish(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, message.getClientName(), null,
+                Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
+    }
+
+    private void handleDataCenterSyncRequestMessage(SyncRequestMessage message) throws IOException{
+        String destDataCenterName = message.getDataCenterName();
+        SyncResponseMessage responseMessage = new SyncResponseMessage(this.dataCenterName, destDataCenterName);
+        responseMessage.setTimeTable(timeTable);
+        responseMessage.setLog(logs);
+        this.sendResponseToDataCenter(responseMessage);
+    }
+
+    private void handleDataCenterResponseMessage(SyncResponseMessage message){
+        // TODO
+        // update time table
+        // update log
+    }
+
+    private void sendResponseToDataCenter(SyncResponseMessage message) throws IOException{
+        channel.basicPublish(Common.LOG_DIRECT_EXCHANGE_NAME,  message.getToDataCenterName(), null,
                 Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
     }
 

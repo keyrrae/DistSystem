@@ -23,4 +23,7 @@ public class SyncRequestMessage extends CrossDataCenterMessage{
         // TODO Auto-generated constructor stub
     }
 
+    public String getDataCenterName(){
+        return fromDataCenterName;
+    }
 }
