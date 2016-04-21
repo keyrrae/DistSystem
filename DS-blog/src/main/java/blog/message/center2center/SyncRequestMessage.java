@@ -1,5 +1,8 @@
 
-package blog.message;
+package blog.message.center2center;
+
+import blog.message.Message;
+
 /**  
  * @Project: ds-blog
  * @Title: SyncRequestMessage.java
@@ -9,6 +12,6 @@ package blog.message;
  * @date Apr 18, 2016 1:28:26 PM
  * @version V1.0  
  */
-public class SyncRequestMessage extends Message{
+public class SyncRequestMessage extends CrossDataCenterMessage{
 
 }

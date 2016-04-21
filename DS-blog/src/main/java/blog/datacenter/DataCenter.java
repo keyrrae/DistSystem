@@ -3,14 +3,18 @@ package blog.datacenter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.log4j.Logger;
 
 import blog.logs.EventRecord;
-import blog.message.ClientRequestMessage;
-import blog.message.SyncRequestMessage;
-import blog.message.SyncResponseMessage;
+import blog.message.center2center.SyncRequestMessage;
+import blog.message.center2center.SyncResponseMessage;
+import blog.message.client2center.CenterResponseLookUpMessage;
+import blog.message.client2center.ClientRequestLookUpMessage;
+import blog.message.client2center.ClientRequestPostMessage;
+import blog.message.client2center.ClientRequestSyncMessage;
 import blog.misc.Common;
 import blog.misc.MessageWrapper;
 
@@ -26,7 +30,7 @@ public class DataCenter extends Thread {
 
     private TimeTable timeTable;
 
-    private List<Post> listOfPost;
+    private PriorityQueue<Post> listOfPost;
     private List<EventRecord> logs;
 
     // DataCenter name for routing
@@ -138,16 +142,26 @@ public class DataCenter extends Thread {
                 if (wrapper != null) {
                     Class classType = wrapper.getInnerMessageClass();
                     if (classType.equals(SyncRequestMessage.class)) {
-                        SyncRequestMessage syncRequestMessage = (SyncRequestMessage) wrapper.getInnerMessage();
+                        SyncRequestMessage message = (SyncRequestMessage) wrapper.getInnerMessage();
                         logger.info("SyncRequestMessage");
                     }
                     else if (classType.equals(SyncResponseMessage.class)) {
-                        SyncResponseMessage syncResponseMessage = (SyncResponseMessage) wrapper.getInnerMessage();
+                        SyncResponseMessage message = (SyncResponseMessage) wrapper.getInnerMessage();
                         logger.info("SyncResponseMessage");
                     }
-                    else if (classType.equals(ClientRequestMessage.class)) {
-                        ClientRequestMessage clientRequestMessage = (ClientRequestMessage) wrapper.getInnerMessage();
-                        logger.info("ClientRequestMessage");
+                    else if (classType.equals(ClientRequestLookUpMessage.class)) {
+                        ClientRequestLookUpMessage message = (ClientRequestLookUpMessage) wrapper.getInnerMessage();
+                        logger.info("ClientRequestLookUpMessage");
+                        handleClientRequestLookUpMessage(message);
+
+                    }
+                    else if (classType.equals(ClientRequestPostMessage.class)) {
+                        ClientRequestPostMessage message = (ClientRequestPostMessage) wrapper.getInnerMessage();
+                        logger.info("ClientRequestPostMessage");
+                    }
+                    else if (classType.equals(ClientRequestSyncMessage.class)) {
+                        ClientRequestSyncMessage message = (ClientRequestSyncMessage) wrapper.getInnerMessage();
+                        logger.info("ClientRequestSyncMessage");
                     }
                 }
             }
@@ -156,64 +170,27 @@ public class DataCenter extends Thread {
         }
     }
 
+    /**
+     * Description: TODO
+     * 
+     * @param message
+     *            void
+     */
+    private void handleClientRequestLookUpMessage(ClientRequestLookUpMessage message) {
+        String clientName = message.getClientName();
+        CenterResponseLookUpMessage responseMessage = new CenterResponseLookUpMessage(clientName, this.dataCenterName,
+                this.listOfPost);
+
+    }
+
+    public void sendResponseToClient(Message m) {
+        channel.basicPublish(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, dataCenterName, null,
+                Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
+    }
+
     public static void main(String[] args) throws IOException, TimeoutException {
         DataCenter dc = new DataCenter("dc1", new HashMap<String, Integer>());
         new Thread(dc).start();
     }
-    // public DataCenter(String configFile) {
-    //
-    // BufferedReader br;
-    // try {
-    // br = new BufferedReader(new FileReader(configFile));
-    // StringBuilder sb = new StringBuilder();
-    // String line = br.readLine();
-    //
-    // while (line != null) {
-    // String[] config = line.trim().split("\\s+");
-    //
-    // line = br.readLine();
-    // }
-    //
-    // } catch (FileNotFoundException e) {
-    // System.out.println("cannot find file");
-    // } catch (IOException e) {
-    //
-    // System.out.println("IO:cannot find file");
-    //
-    // }
-    // }
-
-    // void onReceive() {
-    //
-    // }
-    //
-    // void sync(String hostname) {
-    // // check if hostname is available
-    // if (!serverMap.containsKey(hostname)) {
-    // System.out.println("hostname does not exist.");
-    // return;
-    // }
-    //
-    // // send sync request to hostname
-    // // receive log items from DC
-    // // update log and update timetable
-    // onReceive();
-    //
-    // }
-    //
-    // public void lookup(int client) {
-    // // Serialize log
-    // // send to client
-    //
-    // }
-    //
-    // public void lookup() {
-    // log.printLog();
-    // }
-    //
-    // public void post(String msgStr) {
-    // Message msg = new Message(log, timeTable);
-    //
-    // }
 
 }

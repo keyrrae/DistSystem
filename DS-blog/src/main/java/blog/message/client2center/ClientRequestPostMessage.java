@@ -1,5 +1,8 @@
 
-package blog.message;
+package blog.message.client2center;
+
+import blog.message.Message;
+
 /**  
  * @Project: ds-blog
  * @Title: ClientRequestMessage.java
@@ -9,6 +12,6 @@ package blog.message;
  * @date Apr 18, 2016 1:28:44 PM
  * @version V1.0  
  */
-public class ClientRequestMessage extends Message{
-
+public class ClientRequestPostMessage extends Message{
+    
 }

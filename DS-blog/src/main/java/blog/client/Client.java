@@ -6,7 +6,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
-import blog.message.ClientRequestMessage;
+import blog.message.client2center.ClientRequestLookUpMessage;
 import blog.misc.Common;
 import blog.misc.MessageWrapper;
 
@@ -65,7 +65,7 @@ public class Client implements Runnable {
 
     }
 
-    public void sendMessageToDataCenter(String dataCenterName, ClientRequestMessage message) throws IOException {
+    public void sendMessageToDataCenter(String dataCenterName, ClientRequestLookUpMessage message) throws IOException {
         channel.basicPublish(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, dataCenterName, null,
                 Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
     }
@@ -76,7 +76,7 @@ public class Client implements Runnable {
 
     public static void main(String[] args) throws IOException, TimeoutException {
         Client c = new Client("shit");
-        c.sendMessageToDataCenter("dc1", new ClientRequestMessage());
+        c.sendMessageToDataCenter("dc1", new ClientRequestLookUpMessage(c.clientName, "dc1"));
     }
 
     /*
