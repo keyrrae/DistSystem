@@ -1,6 +1,7 @@
 package blog.datacenter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.PriorityQueue;
@@ -12,6 +13,7 @@ import blog.logs.EventRecord;
 import blog.message.center2center.SyncRequestMessage;
 import blog.message.center2center.SyncResponseMessage;
 import blog.message.client2center.CenterResponseLookUpMessage;
+import blog.message.client2center.ClientDataCenterMessage;
 import blog.message.client2center.ClientRequestLookUpMessage;
 import blog.message.client2center.ClientRequestPostMessage;
 import blog.message.client2center.ClientRequestSyncMessage;
@@ -53,6 +55,23 @@ public class DataCenter extends Thread {
 
     private static Logger logger = Logger.getLogger(DataCenter.class);
 
+    public DataCenter(String dataCenterName, HashMap<String, Integer> dataCenterNameToIndex) throws IOException,
+            TimeoutException {
+        factory = new ConnectionFactory();
+        factory.setHost(Common.MQ_HOST_NAME);
+        connection = factory.newConnection();
+        channel = connection.createChannel();
+
+        this.dataCenterName = dataCenterName;
+        this.dataCenterNameToIndex = dataCenterNameToIndex;
+        timeTable = new TimeTable(dataCenterNameToIndex);
+        listOfPost = new PriorityQueue<Post>();
+        logs = new ArrayList<EventRecord>();
+
+        this.logPropagationDirectQueueName = Common.getDatacenterLogPropagationDirectQueueName(dataCenterName);
+        this.clientMessageDirectQueueName = Common.getClientMessageReceiverDirectQueueName(dataCenterName);
+    }
+
     /**
      * 
      * Description: Connect to log propagation exchange with routing key: this.dataCenterName
@@ -91,21 +110,6 @@ public class DataCenter extends Thread {
         }
         channel.basicConsume(clientMessageDirectQueueName, true, consumer);
 
-    }
-
-    public DataCenter(String dataCenterName, HashMap<String, Integer> dataCenterNameToIndex) throws IOException,
-            TimeoutException {
-        factory = new ConnectionFactory();
-        factory.setHost(Common.MQ_HOST_NAME);
-        connection = factory.newConnection();
-        channel = connection.createChannel();
-
-        this.dataCenterName = dataCenterName;
-        this.dataCenterNameToIndex = dataCenterNameToIndex;
-        timeTable = new TimeTable(dataCenterNameToIndex);
-
-        this.logPropagationDirectQueueName = Common.getDatacenterLogPropagationDirectQueueName(dataCenterName);
-        this.clientMessageDirectQueueName = Common.getClientMessageReceiverDirectQueueName(dataCenterName);
     }
 
     /**
@@ -158,6 +162,7 @@ public class DataCenter extends Thread {
                     else if (classType.equals(ClientRequestPostMessage.class)) {
                         ClientRequestPostMessage message = (ClientRequestPostMessage) wrapper.getInnerMessage();
                         logger.info("ClientRequestPostMessage");
+                        handleClientRequestPostMessage(message);
                     }
                     else if (classType.equals(ClientRequestSyncMessage.class)) {
                         ClientRequestSyncMessage message = (ClientRequestSyncMessage) wrapper.getInnerMessage();
@@ -176,15 +181,34 @@ public class DataCenter extends Thread {
      * @param message
      *            void
      */
-    private void handleClientRequestLookUpMessage(ClientRequestLookUpMessage message) {
+    private void handleClientRequestPostMessage(ClientRequestPostMessage message) {
+        listOfPost.add(message.getPost());
+    }
+
+    /**
+     * Description: TODO
+     * 
+     * @param message
+     *            void
+     * @throws IOException
+     */
+    private void handleClientRequestLookUpMessage(ClientRequestLookUpMessage message) throws IOException {
         String clientName = message.getClientName();
         CenterResponseLookUpMessage responseMessage = new CenterResponseLookUpMessage(clientName, this.dataCenterName,
                 this.listOfPost);
-
+        this.sendResponseToClient(responseMessage);
     }
 
-    public void sendResponseToClient(Message m) {
-        channel.basicPublish(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, dataCenterName, null,
+    /**
+     * 
+     * Description: Send response message to client
+     * 
+     * @param message
+     * @throws IOException
+     *             void
+     */
+    public void sendResponseToClient(ClientDataCenterMessage message) throws IOException {
+        channel.basicPublish(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, message.getClientName(), null,
                 Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
     }
 

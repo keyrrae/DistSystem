@@ -14,4 +14,13 @@ import blog.message.Message;
  */
 public class SyncRequestMessage extends CrossDataCenterMessage{
 
+    /**
+     * @param fromDataCenterName
+     * @param toDataCenterName
+     */
+    public SyncRequestMessage(String fromDataCenterName, String toDataCenterName) {
+        super(fromDataCenterName, toDataCenterName);
+        // TODO Auto-generated constructor stub
+    }
+
 }

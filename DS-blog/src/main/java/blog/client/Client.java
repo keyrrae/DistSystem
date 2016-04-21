@@ -6,7 +6,11 @@ import java.util.concurrent.TimeoutException;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
+import blog.datacenter.Post;
+import blog.message.client2center.CenterResponseLookUpMessage;
+import blog.message.client2center.ClientDataCenterMessage;
 import blog.message.client2center.ClientRequestLookUpMessage;
+import blog.message.client2center.ClientRequestPostMessage;
 import blog.misc.Common;
 import blog.misc.MessageWrapper;
 
@@ -55,6 +59,21 @@ public class Client implements Runnable {
         this.datacenterFeedbackMessageReceiverDirectQueueName = Common
                 .getDatacenterFeedbackMessageReceiverDirectQueue(clientName);
 
+    }
+
+    public void sendMessageToDataCenter(ClientDataCenterMessage message) throws IOException {
+        channel.basicPublish(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, message.getDataCenterName(), null,
+                Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
+    }
+
+    public void postToDataCenter(String message) {
+
+    }
+
+    public void run() {
+        MessageWrapper wrapper = null;
+        QueueingConsumer.Delivery delivery;
+
         try {
             this.bindToDatacenterMessageReceiverQueue();
         } catch (Exception e) {
@@ -63,29 +82,52 @@ public class Client implements Runnable {
             System.exit(-1);
         }
 
+        logger.info("Client: " + this.clientName + " is Running");
+
+        // Receive Log
+        try {
+            while (true) {
+                delivery = consumer.nextDelivery();
+                if (delivery != null) {
+                    String msg = new String(delivery.getBody());
+                    wrapper = Common.deserialize(msg, MessageWrapper.class);
+                }
+                if (wrapper != null) {
+                    Class classType = wrapper.getInnerMessageClass();
+                    if (classType.equals(CenterResponseLookUpMessage.class)) {
+                        CenterResponseLookUpMessage message = (CenterResponseLookUpMessage) wrapper.getInnerMessage();
+                        logger.info("CenterResponseLookUpMessage");
+                        handleCenterResponseLookUpMessage(message);
+                    }
+
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    public void sendMessageToDataCenter(String dataCenterName, ClientRequestLookUpMessage message) throws IOException {
-        channel.basicPublish(Common.CLIENT_REQUEST_DIRECT_EXCHANGE_NAME, dataCenterName, null,
-                Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
-    }
-
-    public void postToDataCenter(String message) {
-
-    }
-
-    public static void main(String[] args) throws IOException, TimeoutException {
-        Client c = new Client("shit");
-        c.sendMessageToDataCenter("dc1", new ClientRequestLookUpMessage(c.clientName, "dc1"));
-    }
-
-    /*
-     * (non-Javadoc)
+    /**
+     * Description: TODO
      * 
-     * @see java.lang.Runnable#run()
+     * @param message
+     *            void
      */
-    public void run() {
-        // TODO Auto-generated method stub
+    private void handleCenterResponseLookUpMessage(CenterResponseLookUpMessage message) {
+        for (Post p : message.getListOfPost()) {
+            System.out.println(p.getContent());
+        }
+    }
+
+    public static void main(String[] args) throws IOException, TimeoutException, InterruptedException {
+        Client c = new Client("client1");
+        new Thread(c).start();
+        logger.info("Send a post");
+        c.sendMessageToDataCenter(new ClientRequestPostMessage(c.clientName, "dc1", new Post("FUCK")));
+       
+        Thread.sleep(3000);
+        logger.info("Request look up");
+        c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, "dc1"));
 
     }
 }
