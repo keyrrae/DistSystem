@@ -17,8 +17,8 @@ import java.util.List;
  * @version V1.0
  */
 public class SyncResponseMessage extends CrossDataCenterMessage {
-    List<EventRecord> logs;
-    TimeTable timeTable;
+    private List<EventRecord> logs;
+    private TimeTable timeTable;
 
     /**
      * @param fromDataCenterName
@@ -30,15 +30,14 @@ public class SyncResponseMessage extends CrossDataCenterMessage {
     }
 
     public void setTimeTable(TimeTable timeTable){
-        // TODO
+        this.timeTable = timeTable;
     }
 
     public void setLog(List<EventRecord> logs){
-        // TODO
+        this.logs = logs;
     }
 
     public TimeTable getTimeTable(){
-        //TODO
         return this.timeTable;
     }
 

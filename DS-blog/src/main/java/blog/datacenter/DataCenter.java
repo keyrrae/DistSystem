@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.TimeoutException;
 
+import com.sun.tools.corba.se.idl.InterfaceGen;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
@@ -68,7 +69,7 @@ public class DataCenter extends Thread {
 
         this.dataCenterName = dataCenterName;
         this.dataCenterNameToIndex = dataCenterNameToIndex;
-        timeTable = new TimeTable(dataCenterNameToIndex);
+        timeTable = new TimeTable(dataCenterNameToIndex, dataCenterName);
         listOfPost = new PriorityQueue<Post>();
         logs = new ArrayList<EventRecord>();
 
@@ -151,13 +152,13 @@ public class DataCenter extends Thread {
                     Class classType = wrapper.getInnerMessageClass();
                     if (classType.equals(SyncRequestMessage.class)) {
                         SyncRequestMessage message = (SyncRequestMessage) wrapper.getInnerMessage();
-                        logger.info("SyncRequestMessage");
+                        logger.info("Received SyncRequestMessage");
                         handleDataCenterSyncRequestMessage(message);
                     }
 
                     else if (classType.equals(SyncResponseMessage.class)) {
                         SyncResponseMessage message = (SyncResponseMessage) wrapper.getInnerMessage();
-                        logger.info("SyncResponseMessage");
+                        logger.info("Received SyncResponseMessage");
                         handleDataCenterResponseMessage(message);
                     }
                     else if (classType.equals(ClientRequestLookUpMessage.class)) {
@@ -174,6 +175,7 @@ public class DataCenter extends Thread {
                     else if (classType.equals(ClientRequestSyncMessage.class)) {
                         ClientRequestSyncMessage message = (ClientRequestSyncMessage) wrapper.getInnerMessage();
                         logger.info("ClientRequestSyncMessage");
+                        handleClientRequestSyncMessage(message);
                     }
                 }
             }
@@ -189,9 +191,9 @@ public class DataCenter extends Thread {
      *            void
      */
     private void handleClientRequestPostMessage(ClientRequestPostMessage message) {
-        timeStamp++;
+        timeTable.increaseLocalClock();
         Post post = message.getPost();
-        post.setTimeStamp(timeStamp);
+        post.setTimeStamp(timeTable.getLocalClock());
         listOfPost.add(post);
     }
 
@@ -223,27 +225,46 @@ public class DataCenter extends Thread {
     }
 
     private void handleDataCenterSyncRequestMessage(SyncRequestMessage message) throws IOException{
-        String destDataCenterName = message.getDataCenterName();
+
+        String destDataCenterName = message.getToDataCenterName();
         SyncResponseMessage responseMessage = new SyncResponseMessage(this.dataCenterName, destDataCenterName);
+
         responseMessage.setTimeTable(timeTable);
         responseMessage.setLog(logs);
-        this.sendResponseToDataCenter(responseMessage);
+        sendSyncResponseToDataCenter(responseMessage);
+        logger.info("Sending sync response message to " + responseMessage.getToDataCenterName());
     }
 
     private void handleDataCenterResponseMessage(SyncResponseMessage message){
         // TODO
         // update time table
+
+        timeTable.upDateUponReceived(message.getTimeTable());
         // update log
     }
 
-    private void sendResponseToDataCenter(SyncResponseMessage message) throws IOException{
+    private void sendSyncResponseToDataCenter(SyncResponseMessage message) throws IOException{
         channel.basicPublish(Common.LOG_DIRECT_EXCHANGE_NAME,  message.getToDataCenterName(), null,
                 Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
     }
 
+    private void handleClientRequestSyncMessage(ClientRequestSyncMessage message) throws IOException{
+        SyncRequestMessage syncRequestMessage = new SyncRequestMessage(message.getFromDataCenterName(),
+                                                        message.getToDataCenterName());
+        channel.basicPublish(Common.LOG_DIRECT_EXCHANGE_NAME,  syncRequestMessage.getFromDataCenterName(), null,
+                Common.serialize(new MessageWrapper(Common.serialize(syncRequestMessage), syncRequestMessage.getClass())).getBytes());
+        logger.info("Sending sync request to " + syncRequestMessage.getFromDataCenterName());
+    }
+
     public static void main(String[] args) throws IOException, TimeoutException {
-        DataCenter dc = new DataCenter("dc1", new HashMap<String, Integer>());
-        new Thread(dc).start();
+
+        HashMap<String, Integer> dataCenterNameIndexMap = new HashMap<String, Integer>();
+        dataCenterNameIndexMap.put("dc1", 0);
+        dataCenterNameIndexMap.put("dc2", 1);
+        DataCenter dc1 = new DataCenter("dc1", new HashMap<String, Integer>());
+        DataCenter dc2 = new DataCenter("dc2", new HashMap<String, Integer>());
+        new Thread(dc1).start();
+        new Thread(dc2).start();
     }
 
 }

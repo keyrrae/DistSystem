@@ -4,14 +4,11 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.TimeoutException;
 
+import blog.message.client2center.*;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 import blog.datacenter.Post;
-import blog.message.client2center.CenterResponseLookUpMessage;
-import blog.message.client2center.ClientDataCenterMessage;
-import blog.message.client2center.ClientRequestLookUpMessage;
-import blog.message.client2center.ClientRequestPostMessage;
 import blog.misc.Common;
 import blog.misc.MessageWrapper;
 
@@ -207,7 +204,8 @@ public class Client implements Runnable {
                 }
                 else {
                     println("synchronizing with " + blogArgs[1]);
-                    //c.sendMessageToDataCenter(new Cli);
+                    c.sendMessageToDataCenter(new ClientRequestSyncMessage(c.clientName, blogArgs[1], "dc1"));
+                    printf("> ");
                 }
             }
             else if(blogArgs[0].equals("e") || blogArgs[0].equals("exit")){
