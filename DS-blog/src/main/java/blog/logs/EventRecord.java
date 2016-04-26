@@ -14,6 +14,7 @@ public class EventRecord {
 
     public EventRecord(long timestamp, String nodeName, String content) {
         this.op = OperationType.POST;
+        this.timestamp = timestamp;
         this.nodeName = nodeName;
         this.content = content;
     }

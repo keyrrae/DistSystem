@@ -4,7 +4,6 @@ import java.util.HashMap;
 
 import static java.lang.System.exit;
 
-
 /**
  * @Project: ds-blog
  * @Title: TimeTable.java
@@ -21,18 +20,10 @@ public class TimeTable {
     public TimeTable(HashMap<String, Integer> dataCenterNameToIndex, String dataCenterName) {
         table = new long[dataCenterNameToIndex.size()][dataCenterNameToIndex.size()];
         dataCenterIndex = dataCenterNameToIndex.get(dataCenterName);
-        
+
     }
 
-    public int size(){
-        return table.length;
-    }
-
-    public void increaseLocalClock(){
-        table[dataCenterIndex][dataCenterIndex]++;
-    }
-
-    public long getLocalClock(){
+    public long getLocalClock() {
         return table[dataCenterIndex][dataCenterIndex];
     }
 
@@ -52,17 +43,44 @@ public class TimeTable {
         this.dataCenterIndex = dataCenterIndex;
     }
 
-    public void upDateUponReceived(TimeTable recv){
-        this.increaseLocalClock();
+    public int size() {
+        return table.length;
+    }
+
+    public void increaseLocalClock() {
+        table[dataCenterIndex][dataCenterIndex]++;
+    }
+
+    /**
+     * 
+     * Description: Check if datacenter X(index) know datacenter Y(index) till timestamp T.
+     * 
+     * @param X
+     * @param Y
+     * @param T
+     * @return
+     *         boolean
+     */
+    public boolean ifDatacenterXKnowDatacenterYTillTimeT(int X, int Y, long T) {
+        return this.table[X][Y] >= T;
+    }
+
+    public void upDateUponReceived(int recvTableDatacenterIndex, TimeTable recv) {
+        // Should make local clock sync (one more than) received message source's clock?
+        // this.increaseLocalClock();
+        this.table[dataCenterIndex][dataCenterIndex] = Math.max(
+                recv.getTable()[recvTableDatacenterIndex][recvTableDatacenterIndex],
+                this.table[dataCenterIndex][dataCenterIndex]) + 1;
+        
         int n = this.table.length;
         int m = recv.size();
 
-        if(n != m){
+        if (n != m) {
             System.out.println("different time table dimensions");
             exit(1);
         }
-        for(int i = 0; i < n; i++){
-            for (int j = 0; j < n; j++){
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
                 table[i][j] = table[i][j] > recv.getTable()[i][j] ? table[i][j] : recv.getTable()[i][j];
             }
         }
@@ -70,7 +88,7 @@ public class TimeTable {
         int recvIndex = recv.getDataCenterIndex();
         int thisIndex = dataCenterIndex;
 
-        for(int j = 0; j < n; j++){
+        for (int j = 0; j < n; j++) {
             table[thisIndex][j] = table[thisIndex][j] > recv.getTable()[recvIndex][j] ?
                     table[thisIndex][j] : recv.getTable()[recvIndex][j];
         }

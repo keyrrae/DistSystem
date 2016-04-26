@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.TimeoutException;
 
-import com.sun.tools.corba.se.idl.InterfaceGen;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
@@ -32,7 +31,7 @@ import com.rabbitmq.client.QueueingConsumer;
  */
 public class DataCenter extends Thread {
 
-    private TimeTable timeTable;
+    TimeTable timeTable;
 
     private PriorityQueue<Post> listOfPost;
     private List<EventRecord> logs;
@@ -185,6 +184,21 @@ public class DataCenter extends Thread {
     }
 
     /**
+     * 
+     * Description: Used when decide what logs to send to other data center k.
+     * 
+     * @param table
+     * @param e
+     * @param kIndex
+     * @return
+     *         boolean
+     */
+    public boolean hasRec(EventRecord e, int kIndex) {
+        int eventDatacenterIndex = dataCenterNameToIndex.get(e.getNodeName());
+        return this.timeTable.ifDatacenterXKnowDatacenterYTillTimeT(kIndex, eventDatacenterIndex, e.getTimestamp());
+    }
+
+    /**
      * Description: TODO
      * 
      * @param message
@@ -195,6 +209,27 @@ public class DataCenter extends Thread {
         Post post = message.getPost();
         post.setTimeStamp(timeTable.getLocalClock());
         listOfPost.add(post);
+    }
+
+    /**
+     * 
+     * Description: TODO
+     * 
+     * @param message
+     * @throws IOException
+     *             void
+     */
+    private void handleClientRequestSyncMessage(ClientRequestSyncMessage message) throws IOException {
+        SyncRequestMessage syncRequestMessage = new SyncRequestMessage(message.getFromDataCenterName(),
+                message.getToDataCenterName());
+        channel.basicPublish(
+                Common.LOG_DIRECT_EXCHANGE_NAME,
+                syncRequestMessage.getFromDataCenterName(),
+                null,
+                Common.serialize(
+                        new MessageWrapper(Common.serialize(syncRequestMessage), syncRequestMessage.getClass()))
+                        .getBytes());
+        logger.info("Sending sync request to " + syncRequestMessage.getFromDataCenterName());
     }
 
     /**
@@ -211,7 +246,47 @@ public class DataCenter extends Thread {
         this.sendResponseToClient(responseMessage);
     }
 
-     /**
+    /**
+     * 
+     * Description: Datacenter handle other datacenter's sync request message. SyncRequestMessage's toDataCenterName is
+     * the
+     * data center that send SyncRequestMessage
+     * 
+     * @param message
+     * @throws IOException
+     *             void
+     */
+    private void handleDataCenterSyncRequestMessage(SyncRequestMessage message) throws IOException {
+
+        String destDataCenterName = message.getToDataCenterName();
+        int destDataCenterIndex = dataCenterNameToIndex.get(dataCenterName);
+
+        SyncResponseMessage responseMessage = new SyncResponseMessage(this.dataCenterName, destDataCenterName);
+
+        responseMessage.setTimeTable(timeTable);
+
+        // Filter what message to be sent out
+        List<EventRecord> logsToBeSent = new ArrayList<EventRecord>();
+        for (EventRecord e : logs) {
+            if (!hasRec(e, destDataCenterIndex)) {
+                logsToBeSent.add(e);
+            }
+        }
+        responseMessage.setLog(logsToBeSent);
+        sendSyncResponseToDataCenter(responseMessage);
+        logger.info("Sending sync response message to " + responseMessage.getToDataCenterName());
+    }
+
+    private void handleDataCenterResponseMessage(SyncResponseMessage message) {
+        // TODO
+        // update time table
+
+        timeTable
+                .upDateUponReceived(dataCenterNameToIndex.get(message.getFromDataCenterName()), message.getTimeTable());
+        // update log
+    }
+
+    /**
      * 
      * Description: Send response message to client
      * 
@@ -224,36 +299,9 @@ public class DataCenter extends Thread {
                 Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
     }
 
-    private void handleDataCenterSyncRequestMessage(SyncRequestMessage message) throws IOException{
-
-        String destDataCenterName = message.getToDataCenterName();
-        SyncResponseMessage responseMessage = new SyncResponseMessage(this.dataCenterName, destDataCenterName);
-
-        responseMessage.setTimeTable(timeTable);
-        responseMessage.setLog(logs);
-        sendSyncResponseToDataCenter(responseMessage);
-        logger.info("Sending sync response message to " + responseMessage.getToDataCenterName());
-    }
-
-    private void handleDataCenterResponseMessage(SyncResponseMessage message){
-        // TODO
-        // update time table
-
-        timeTable.upDateUponReceived(message.getTimeTable());
-        // update log
-    }
-
-    private void sendSyncResponseToDataCenter(SyncResponseMessage message) throws IOException{
-        channel.basicPublish(Common.LOG_DIRECT_EXCHANGE_NAME,  message.getToDataCenterName(), null,
+    private void sendSyncResponseToDataCenter(SyncResponseMessage message) throws IOException {
+        channel.basicPublish(Common.LOG_DIRECT_EXCHANGE_NAME, message.getToDataCenterName(), null,
                 Common.serialize(new MessageWrapper(Common.serialize(message), message.getClass())).getBytes());
-    }
-
-    private void handleClientRequestSyncMessage(ClientRequestSyncMessage message) throws IOException{
-        SyncRequestMessage syncRequestMessage = new SyncRequestMessage(message.getFromDataCenterName(),
-                                                        message.getToDataCenterName());
-        channel.basicPublish(Common.LOG_DIRECT_EXCHANGE_NAME,  syncRequestMessage.getFromDataCenterName(), null,
-                Common.serialize(new MessageWrapper(Common.serialize(syncRequestMessage), syncRequestMessage.getClass())).getBytes());
-        logger.info("Sending sync request to " + syncRequestMessage.getFromDataCenterName());
     }
 
     public static void main(String[] args) throws IOException, TimeoutException {
