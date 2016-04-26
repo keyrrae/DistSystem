@@ -33,20 +33,11 @@ public class TimeTableUnitTest {
         tb1 = new TimeTable(dataCenterNameToIndex, "dc1");
         tb2 = new TimeTable(dataCenterNameToIndex, "dc2");
 
-        long[][] tb0Inside = new long[][] {
-                { 3, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }
-        };
-        long[][] tb1Inside = new long[][] {
-                { 0, 0, 0 }, { 0, 1, 0 }, { 0, 0, 0 }
-        };
-        tb0.setTable(tb0Inside);
-        tb1.setTable(tb1Inside);
-
     }
 
     @Test
     public void testUpdateUponReceived() {
-        tb1.upDateUponReceived(0, tb0);
+        tb1.updateTimeTable(0, tb0);
 
         long[][] mergedTb0 = new long[][] {
                 { 3, 0, 0 }, { 3, 4, 0 }, { 0, 0, 0 }

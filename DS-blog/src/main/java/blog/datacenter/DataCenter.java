@@ -1,5 +1,7 @@
 package blog.datacenter;
 
+import static java.lang.System.exit;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -68,6 +70,8 @@ public class DataCenter extends Thread {
 
         this.dataCenterName = dataCenterName;
         this.dataCenterNameToIndex = dataCenterNameToIndex;
+        this.dataCenterIndex = dataCenterNameToIndex.get(dataCenterName);
+        
         timeTable = new TimeTable(dataCenterNameToIndex, dataCenterName);
         listOfPost = new PriorityQueue<Post>();
         logs = new ArrayList<EventRecord>();
@@ -278,12 +282,48 @@ public class DataCenter extends Thread {
     }
 
     private void handleDataCenterResponseMessage(SyncResponseMessage message) {
-        // TODO
         // update time table
+        updateTimeTable(dataCenterNameToIndex.get(message.getFromDataCenterName()), message.getTimeTable());
+        // filter log to be added to own logs
 
-        timeTable
-                .upDateUponReceived(dataCenterNameToIndex.get(message.getFromDataCenterName()), message.getTimeTable());
-        // update log
+    }
+
+    /**
+     * 
+     * Description: Update local timeTable using the timeTabel received
+     * 
+     * @param recvTableDatacenterIndex
+     * @param recv
+     *            void
+     */
+    public void updateTimeTable(int recvTableDatacenterIndex, TimeTable recv) {
+        // Should make local clock sync (one more than) received message source's clock?
+        // this.increaseLocalClock();
+        long[][] table = this.timeTable.getTable();
+        table[dataCenterIndex][dataCenterIndex] = Math.max(
+                recv.getTable()[recvTableDatacenterIndex][recvTableDatacenterIndex],
+                table[dataCenterIndex][dataCenterIndex]) + 1;
+
+        int n = table.length;
+        int m = recv.size();
+
+        if (n != m) {
+            System.out.println("different time table dimensions");
+            exit(1);
+        }
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                table[i][j] = table[i][j] > recv.getTable()[i][j] ? table[i][j] : recv.getTable()[i][j];
+            }
+        }
+
+        int recvIndex = recv.getDataCenterIndex();
+        int thisIndex = dataCenterIndex;
+
+        for (int j = 0; j < n; j++) {
+            table[thisIndex][j] = table[thisIndex][j] > recv.getTable()[recvIndex][j] ?
+                    table[thisIndex][j] : recv.getTable()[recvIndex][j];
+        }
     }
 
     /**

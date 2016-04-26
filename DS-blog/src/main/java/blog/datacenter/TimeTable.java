@@ -65,32 +65,5 @@ public class TimeTable {
         return this.table[X][Y] >= T;
     }
 
-    public void upDateUponReceived(int recvTableDatacenterIndex, TimeTable recv) {
-        // Should make local clock sync (one more than) received message source's clock?
-        // this.increaseLocalClock();
-        this.table[dataCenterIndex][dataCenterIndex] = Math.max(
-                recv.getTable()[recvTableDatacenterIndex][recvTableDatacenterIndex],
-                this.table[dataCenterIndex][dataCenterIndex]) + 1;
-        
-        int n = this.table.length;
-        int m = recv.size();
-
-        if (n != m) {
-            System.out.println("different time table dimensions");
-            exit(1);
-        }
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                table[i][j] = table[i][j] > recv.getTable()[i][j] ? table[i][j] : recv.getTable()[i][j];
-            }
-        }
-
-        int recvIndex = recv.getDataCenterIndex();
-        int thisIndex = dataCenterIndex;
-
-        for (int j = 0; j < n; j++) {
-            table[thisIndex][j] = table[thisIndex][j] > recv.getTable()[recvIndex][j] ?
-                    table[thisIndex][j] : recv.getTable()[recvIndex][j];
-        }
-    }
+  
 }
