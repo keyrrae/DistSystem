@@ -1,10 +1,13 @@
 package blog.client;
 
 import java.io.IOException;
+import java.util.PriorityQueue;
 import java.util.Scanner;
 import java.util.concurrent.TimeoutException;
 
+import blog.logs.EventRecord;
 import blog.message.client2center.*;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
@@ -22,8 +25,8 @@ import static java.lang.System.exit;
 /**
  * Created by xuanwang on 4/12/16.
  */
-public class Client implements Runnable {
-    private static Logger logger = Logger.getLogger(Client.class);
+public class Client2 implements Runnable {
+    private static Logger logger = Logger.getLogger(Client2.class);
     private ConnectionFactory factory;
     private Connection connection;
     private Channel channel;
@@ -47,7 +50,7 @@ public class Client implements Runnable {
         channel.basicConsume(this.datacenterFeedbackMessageReceiverDirectQueueName, true, consumer);
     }
 
-    public Client(String clientName) throws IOException, TimeoutException {
+    public Client2(String clientName) throws IOException, TimeoutException {
         super();
         BasicConfigurator.configure();
         this.clientName = clientName;
@@ -94,9 +97,9 @@ public class Client implements Runnable {
                 }
                 if (wrapper != null) {
                     Class classType = wrapper.getInnerMessageClass();
+                    System.out.println("Got a response");
                     if (classType.equals(CenterResponseLookUpMessage.class)) {
                         CenterResponseLookUpMessage message = (CenterResponseLookUpMessage) wrapper.getInnerMessage();
-                        logger.info("CenterResponseLookUpMessage");
                         handleCenterResponseLookUpMessage(message);
                     }
 
@@ -114,21 +117,22 @@ public class Client implements Runnable {
      *            void
      */
     private void handleCenterResponseLookUpMessage(CenterResponseLookUpMessage message) {
-        for (Post p : message.getListOfPost()) {
-            System.out.println(p.getContent());
+        PriorityQueue<EventRecord> records = message.getListOfLogs();
+        while (!records.isEmpty()) {
+            println(records.poll().getContent());
         }
         printf("> ");
     }
 
-    private static void println(String line){
+    private static void println(String line) {
         System.out.println(line);
     }
 
-    private static void printf(String line){
+    private static void printf(String line) {
         System.out.printf(line);
     }
 
-    private static void printCommands(){
+    private static void printCommands() {
         println("===================================================");
         println("post(p) <message>");
         println("  - Post a message in DS-blog\n");
@@ -138,23 +142,23 @@ public class Client implements Runnable {
 
         println("sync(s) <datacenter>");
         println("  - Synchronize with Datacenter");
-        println( "=================================================");
+        println("=================================================");
+        printf("> ");
     }
 
-
-
     public static void main(String[] args) throws IOException, TimeoutException, InterruptedException {
-        Client c = new Client("client1");
+        Client2 c = new Client2("client2");
+        String dataCenterName = "dc2";
         new Thread(c).start();
-        logger.info("Send a post");
-        c.sendMessageToDataCenter(new ClientRequestPostMessage(c.clientName, "dc1", new Post("FUCK")));
-       
-        Thread.sleep(3000);
-        logger.info("Request look up");
-        c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, "dc1"));
+        // logger.info("Send a post");
+        // c.sendMessageToDataCenter(new ClientRequestPostMessage(c.clientName, "dc1", "FUCK"));
+        //
+        // Thread.sleep(3000);
+        // logger.info("Request look up");
+        // c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, "dc1"));
 
         printf("> ");
-        while(true){
+        while (true) {
             Scanner scan = new Scanner(System.in);
 
             String command = scan.nextLine();
@@ -163,52 +167,53 @@ public class Client implements Runnable {
 
             blogArgs[0] = blogArgs[0].toLowerCase();
 
-            if(blogArgs[0].equals("p") || blogArgs[0].equals("post")){
+            if (blogArgs[0].equals("p") || blogArgs[0].equals("post")) {
 
-                if(blogArgs.length == 1){
+                if (blogArgs.length == 1) {
                     println("Please enter your message");
                     continue;
                 }
-                else{
+                else {
                     StringBuilder sb = new StringBuilder();
                     char[] commandChars = command.toCharArray();
                     int start;
-                    if(blogArgs[0].equals("p")){
+                    if (blogArgs[0].equals("p")) {
                         start = 2;
                     }
-                    else{
+                    else {
                         start = 4;
                     }
-                    while(commandChars[start] == ' ' || commandChars[start] == '\t'){
+                    while (commandChars[start] == ' ' || commandChars[start] == '\t') {
                         start++;
                     }
-                    for(int i = start; i < commandChars.length; i++){
+                    for (int i = start; i < commandChars.length; i++) {
 
-                            sb.append(commandChars[i]);
+                        sb.append(commandChars[i]);
                     }
                     String message = sb.toString();
-                    c.sendMessageToDataCenter(new ClientRequestPostMessage(c.clientName, "dc1", new Post(message)));
+                    c.sendMessageToDataCenter(new ClientRequestPostMessage(c.clientName, dataCenterName, message));
                     printf("> ");
                 }
             }
 
-            else if(blogArgs[0].equals("l") || blogArgs[0].equals("lookup")){
-                c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, "dc1"));
+            else if (blogArgs[0].equals("l") || blogArgs[0].equals("lookup")) {
+                c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, dataCenterName));
+                printf("> ");
             }
 
-            else if(blogArgs[0].equals("s") || blogArgs[0].equals("sync")){
-                if(blogArgs.length == 1){
+            else if (blogArgs[0].equals("s") || blogArgs[0].equals("sync")) {
+                if (blogArgs.length == 1) {
                     println("Please enter the hostname of the data center you want to sync with");
                     printf("> ");
                     continue;
                 }
                 else {
                     println("synchronizing with " + blogArgs[1]);
-                    c.sendMessageToDataCenter(new ClientRequestSyncMessage(c.clientName, blogArgs[1], "dc1"));
+                    c.sendMessageToDataCenter(new ClientRequestSyncMessage(c.clientName, blogArgs[1], dataCenterName));
                     printf("> ");
                 }
             }
-            else if(blogArgs[0].equals("e") || blogArgs[0].equals("exit")){
+            else if (blogArgs[0].equals("e") || blogArgs[0].equals("exit")) {
                 println("exiting...");
                 exit(0);
             }

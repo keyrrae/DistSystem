@@ -13,19 +13,18 @@ import blog.message.Message;
  * @version V1.0
  */
 public class ClientRequestPostMessage extends ClientDataCenterMessage {
-    Post post;
+    String post;
 
-
-    public ClientRequestPostMessage(String clientName, String dataCenterName, Post post) {
+    public ClientRequestPostMessage(String clientName, String dataCenterName, String post) {
         super(clientName, dataCenterName);
         this.post = post;
     }
 
-    public Post getPost() {
+    public String getPost() {
         return post;
     }
 
-    public void setPost(Post post) {
+    public void setPost(String post) {
         this.post = post;
     }
 

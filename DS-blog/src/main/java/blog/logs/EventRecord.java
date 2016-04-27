@@ -3,7 +3,7 @@ package blog.logs;
 /**
  * Created by xuanwang on 4/12/16.
  */
-public class EventRecord {
+public class EventRecord implements Comparable<EventRecord> {
     private OperationType op;
     private long timestamp;
 
@@ -49,6 +49,20 @@ public class EventRecord {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
+    public int compareTo(EventRecord o) {
+        if (timestamp > o.timestamp)
+            return 1;
+        else if (timestamp == o.timestamp)
+            return 0;
+        else
+            return -1;
     }
 
 }

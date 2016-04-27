@@ -35,8 +35,8 @@ public class DataCenter extends Thread {
 
     TimeTable timeTable;
 
-    private PriorityQueue<Post> listOfPost;
-    private List<EventRecord> logs;
+    // private PriorityQueue<Post> listOfPost;
+    private PriorityQueue<EventRecord> logs;
     private long timeStamp;
 
     // DataCenter name for routing
@@ -71,10 +71,9 @@ public class DataCenter extends Thread {
         this.dataCenterName = dataCenterName;
         this.dataCenterNameToIndex = dataCenterNameToIndex;
         this.dataCenterIndex = dataCenterNameToIndex.get(dataCenterName);
-        
+
         timeTable = new TimeTable(dataCenterNameToIndex, dataCenterName);
-        listOfPost = new PriorityQueue<Post>();
-        logs = new ArrayList<EventRecord>();
+        logs = new PriorityQueue<EventRecord>();
 
         this.logPropagationDirectQueueName = Common.getDatacenterLogPropagationDirectQueueName(dataCenterName);
         this.clientMessageDirectQueueName = Common.getClientMessageReceiverDirectQueueName(dataCenterName);
@@ -210,9 +209,7 @@ public class DataCenter extends Thread {
      */
     private void handleClientRequestPostMessage(ClientRequestPostMessage message) {
         timeTable.increaseLocalClock();
-        Post post = message.getPost();
-        post.setTimeStamp(timeTable.getLocalClock());
-        listOfPost.add(post);
+        logs.add(new EventRecord(timeTable.getLocalClock(), this.dataCenterName, message.getPost()));
     }
 
     /**
@@ -246,7 +243,8 @@ public class DataCenter extends Thread {
     private void handleClientRequestLookUpMessage(ClientRequestLookUpMessage message) throws IOException {
         String clientName = message.getClientName();
         CenterResponseLookUpMessage responseMessage = new CenterResponseLookUpMessage(clientName, this.dataCenterName,
-                this.listOfPost);
+                this.logs);
+        logger.info("Datacenter send lookup response");
         this.sendResponseToClient(responseMessage);
     }
 
@@ -263,7 +261,7 @@ public class DataCenter extends Thread {
     private void handleDataCenterSyncRequestMessage(SyncRequestMessage message) throws IOException {
 
         String destDataCenterName = message.getToDataCenterName();
-        int destDataCenterIndex = dataCenterNameToIndex.get(dataCenterName);
+        int destDataCenterIndex = dataCenterNameToIndex.get(destDataCenterName);
 
         SyncResponseMessage responseMessage = new SyncResponseMessage(this.dataCenterName, destDataCenterName);
 
@@ -276,16 +274,38 @@ public class DataCenter extends Thread {
                 logsToBeSent.add(e);
             }
         }
-        responseMessage.setLog(logsToBeSent);
+        responseMessage.setLogs(logsToBeSent);
         sendSyncResponseToDataCenter(responseMessage);
         logger.info("Sending sync response message to " + responseMessage.getToDataCenterName());
     }
 
     private void handleDataCenterResponseMessage(SyncResponseMessage message) {
+
+        logger.info("Got message with " + message.getLogs().size() + " logs");
+        // filter log to be added to own logs
+        applyReceivedLogs(message.getLogs());
         // update time table
         updateTimeTable(dataCenterNameToIndex.get(message.getFromDataCenterName()), message.getTimeTable());
-        // filter log to be added to own logs
 
+    }
+
+    /**
+     * Description: TODO
+     * 
+     * @param log
+     *            void
+     */
+    private void applyReceivedLogs(List<EventRecord> log) {
+        int count = 0;
+        for (EventRecord l : log) {
+            int logSourceDatacenterIndex = dataCenterNameToIndex.get(l.getNodeName());
+            // Add logs that don't know
+            if (timeTable.getTable()[dataCenterIndex][logSourceDatacenterIndex] < l.getTimestamp()) {
+                logs.add(l);
+                count++;
+            }
+        }
+        logger.info(count + " logs are appended.");
     }
 
     /**
@@ -324,6 +344,15 @@ public class DataCenter extends Thread {
             table[thisIndex][j] = table[thisIndex][j] > recv.getTable()[recvIndex][j] ?
                     table[thisIndex][j] : recv.getTable()[recvIndex][j];
         }
+        String s = "";
+        for (int i = 0; i < table.length; i++)
+        {
+            for (int j = 0; j < table[0].length; j++) {
+                s += timeTable.getTable()[i][j];
+            }
+            s += "\n";
+        }
+        logger.info("Updated timetable: " + s);
     }
 
     /**
@@ -347,12 +376,15 @@ public class DataCenter extends Thread {
     public static void main(String[] args) throws IOException, TimeoutException {
 
         HashMap<String, Integer> dataCenterNameIndexMap = new HashMap<String, Integer>();
-        dataCenterNameIndexMap.put("dc1", 0);
-        dataCenterNameIndexMap.put("dc2", 1);
-        DataCenter dc1 = new DataCenter("dc1", new HashMap<String, Integer>());
-        DataCenter dc2 = new DataCenter("dc2", new HashMap<String, Integer>());
+        dataCenterNameIndexMap.put("dc0", 0);
+        dataCenterNameIndexMap.put("dc1", 1);
+        dataCenterNameIndexMap.put("dc2", 2);
+        DataCenter dc1 = new DataCenter("dc0", dataCenterNameIndexMap);
+        DataCenter dc2 = new DataCenter("dc1", dataCenterNameIndexMap);
+        DataCenter dc3 = new DataCenter("dc2", dataCenterNameIndexMap);
         new Thread(dc1).start();
         new Thread(dc2).start();
+        new Thread(dc3).start();
     }
 
 }

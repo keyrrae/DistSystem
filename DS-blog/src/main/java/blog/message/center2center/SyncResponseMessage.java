@@ -29,19 +29,20 @@ public class SyncResponseMessage extends CrossDataCenterMessage {
         // TODO Auto-generated constructor stub
     }
 
-    public void setTimeTable(TimeTable timeTable){
+    public void setTimeTable(TimeTable timeTable) {
         this.timeTable = timeTable;
     }
 
-    public void setLog(List<EventRecord> logs){
-        this.logs = logs;
-    }
-
-    public TimeTable getTimeTable(){
+    public TimeTable getTimeTable() {
         return this.timeTable;
     }
 
-    public List<EventRecord> getLog(){
-        return this.logs;
+    public List<EventRecord> getLogs() {
+        return logs;
     }
+
+    public void setLogs(List<EventRecord> logs) {
+        this.logs = logs;
+    }
+
 }

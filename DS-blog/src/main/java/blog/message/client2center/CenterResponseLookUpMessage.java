@@ -3,6 +3,7 @@ package blog.message.client2center;
 import java.util.PriorityQueue;
 
 import blog.datacenter.Post;
+import blog.logs.EventRecord;
 
 /**
  * @Project: ds-blog
@@ -14,20 +15,19 @@ import blog.datacenter.Post;
  * @version V1.0
  */
 public class CenterResponseLookUpMessage extends ClientDataCenterMessage {
+    PriorityQueue<EventRecord> listOfLogs;
 
-    public CenterResponseLookUpMessage(String clientName, String dataCenterName, PriorityQueue<Post> listOfPost) {
+    public CenterResponseLookUpMessage(String clientName, String dataCenterName, PriorityQueue<EventRecord> logs) {
         super(clientName, dataCenterName);
-        this.listOfPost = listOfPost;
+        this.listOfLogs = logs;
     }
 
-    PriorityQueue<Post> listOfPost;
-
-    public PriorityQueue<Post> getListOfPost() {
-        return listOfPost;
+    public PriorityQueue<EventRecord> getListOfLogs() {
+        return listOfLogs;
     }
 
-    public void setListOfPost(PriorityQueue<Post> listOfPost) {
-        this.listOfPost = listOfPost;
+    public void setListOfLogs(PriorityQueue<EventRecord> listOfLogs) {
+        this.listOfLogs = listOfLogs;
     }
 
 }
