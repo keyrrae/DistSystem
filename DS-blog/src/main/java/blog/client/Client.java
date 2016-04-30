@@ -25,8 +25,8 @@ import static java.lang.System.exit;
 /**
  * Created by xuanwang on 4/12/16.
  */
-public class Client2 implements Runnable {
-    private static Logger logger = Logger.getLogger(Client2.class);
+public class Client implements Runnable {
+    private static Logger logger = Logger.getLogger(Client.class);
     private ConnectionFactory factory;
     private Connection connection;
     private Channel channel;
@@ -50,9 +50,9 @@ public class Client2 implements Runnable {
         channel.basicConsume(this.datacenterFeedbackMessageReceiverDirectQueueName, true, consumer);
     }
 
-    public Client2(String clientName) throws IOException, TimeoutException {
+    public Client(String clientName) throws IOException, TimeoutException {
         super();
-        BasicConfigurator.configure();
+
         this.clientName = clientName;
         factory = new ConnectionFactory();
         // NEED TO SETUP HOSTS FILE
@@ -119,7 +119,8 @@ public class Client2 implements Runnable {
     private void handleCenterResponseLookUpMessage(CenterResponseLookUpMessage message) {
         PriorityQueue<EventRecord> records = message.getListOfLogs();
         while (!records.isEmpty()) {
-            println(records.poll().getContent());
+            EventRecord e = records.poll();
+            println(e.getContent() + " from " + e.getNodeName() + " at time " + e.getTimestamp());
         }
         printf("> ");
     }
@@ -147,19 +148,29 @@ public class Client2 implements Runnable {
     }
 
     public static void main(String[] args) throws IOException, TimeoutException, InterruptedException {
-        Client2 c = new Client2("client2");
-        String dataCenterName = "dc2";
+
+        @SuppressWarnings("resource")
+        Scanner scan = new Scanner(System.in);
+        println("Please enter the client name");
+        String clientName = scan.nextLine().trim();
+        println("ClientName:" + clientName);
+        Client c = new Client(clientName);
+        println("Please enter the datacenter name you want to connect to:");
+        String dataCenterName = scan.nextLine().trim();
+        println("DataCenter Connected To:" + dataCenterName);
         new Thread(c).start();
-        // logger.info("Send a post");
-        // c.sendMessageToDataCenter(new ClientRequestPostMessage(c.clientName, "dc1", "FUCK"));
-        //
-        // Thread.sleep(3000);
-        // logger.info("Request look up");
-        // c.sendMessageToDataCenter(new ClientRequestLookUpMessage(c.clientName, "dc1"));
+
+        System.out.println("Please enter MQ address for communication(Or empty for default domain:rabbitmq)");
+        String host = scan.nextLine().trim();
+        if (host != null && host.length() != 0) {
+            Common.MQ_HOST_NAME = host;
+        }
+        
+        println("Client Started...");
+        printCommands();
 
         printf("> ");
         while (true) {
-            Scanner scan = new Scanner(System.in);
 
             String command = scan.nextLine();
             command = command.trim();

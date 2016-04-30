@@ -59,8 +59,9 @@ public class EventRecord implements Comparable<EventRecord> {
     public int compareTo(EventRecord o) {
         if (timestamp > o.timestamp)
             return 1;
-        else if (timestamp == o.timestamp)
-            return 0;
+        else if (timestamp == o.timestamp) {
+            return this.getNodeName().compareTo(o.getNodeName());
+        }
         else
             return -1;
     }

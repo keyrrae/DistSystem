@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Scanner;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.log4j.BasicConfigurator;
@@ -37,7 +38,6 @@ public class DataCenter extends Thread {
 
     // private PriorityQueue<Post> listOfPost;
     private PriorityQueue<EventRecord> logs;
-    private long timeStamp;
 
     // DataCenter name for routing
     private String dataCenterName;
@@ -63,10 +63,10 @@ public class DataCenter extends Thread {
             TimeoutException {
         BasicConfigurator.configure();
         factory = new ConnectionFactory();
+
         factory.setHost(Common.MQ_HOST_NAME);
         connection = factory.newConnection();
         channel = connection.createChannel();
-        timeStamp = 0;
 
         this.dataCenterName = dataCenterName;
         this.dataCenterNameToIndex = dataCenterNameToIndex;
@@ -374,17 +374,35 @@ public class DataCenter extends Thread {
     }
 
     public static void main(String[] args) throws IOException, TimeoutException {
+        Scanner scan = new Scanner(System.in);
+        System.out.println("Please enter current datacenter name");
+        String myName = scan.nextLine().trim();
+        System.out.println("Current DataCenter Name:" + myName);
+
+        System.out.println("Please enter the num of datacenters");
+        int numOfDataCenters = Integer.parseInt(scan.nextLine().trim());
 
         HashMap<String, Integer> dataCenterNameIndexMap = new HashMap<String, Integer>();
-        dataCenterNameIndexMap.put("dc0", 0);
-        dataCenterNameIndexMap.put("dc1", 1);
-        dataCenterNameIndexMap.put("dc2", 2);
-        DataCenter dc1 = new DataCenter("dc0", dataCenterNameIndexMap);
-        DataCenter dc2 = new DataCenter("dc1", dataCenterNameIndexMap);
-        DataCenter dc3 = new DataCenter("dc2", dataCenterNameIndexMap);
-        new Thread(dc1).start();
-        new Thread(dc2).start();
-        new Thread(dc3).start();
-    }
+        System.out
+                .println("Please enter "
+                        + numOfDataCenters
+                        + " datacenter names(including yourself). ");
+        System.out
+                .println("Please make sure the names and their order is exactly the same at every datacenter console.");
+        for (int i = 0; i < numOfDataCenters; i++) {
+            System.out.print("Data Center " + i + ":");
+            String dataCenterName = scan.nextLine().trim();
+            dataCenterNameIndexMap.put(dataCenterName, i);
+        }
 
+        System.out.println("Please enter MQ address for communication(Or empty for default domain:rabbitmq)");
+        String host = scan.nextLine().trim();
+        if (host != null && host.length() != 0) {
+            Common.MQ_HOST_NAME = host;
+        }
+        System.out.println("DataCenter " + myName + " started...");
+        
+        DataCenter dc = new DataCenter(myName, dataCenterNameIndexMap);
+        new Thread(dc).start();
+    }
 }

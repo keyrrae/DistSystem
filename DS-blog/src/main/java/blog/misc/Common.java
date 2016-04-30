@@ -17,7 +17,7 @@ public class Common {
     // For client send request to data center, with routing key
     public final static String CLIENT_REQUEST_DIRECT_EXCHANGE_NAME = "clientRequestDirectExchange";
     // public final static String DC_RESPONSE_DIRECT_EXCHANGE_NAME = "dcResponseDirectExchange";
-    public final static String MQ_HOST_NAME = "rabbithost";
+    public static String MQ_HOST_NAME = "rabbithost";
 
     /**
      * Use json to serialize POJO message
