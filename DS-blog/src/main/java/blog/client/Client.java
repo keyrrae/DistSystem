@@ -154,7 +154,7 @@ public class Client implements Runnable {
         println("Please enter the client name");
         String clientName = scan.nextLine().trim();
         println("ClientName:" + clientName);
-        Client c = new Client(clientName);
+        
         println("Please enter the datacenter name you want to connect to:");
         String dataCenterName = scan.nextLine().trim();
         println("DataCenter Connected To:" + dataCenterName);
@@ -166,6 +166,7 @@ public class Client implements Runnable {
             Common.MQ_HOST_NAME = host;
             System.out.println("MQ Host" + Common.MQ_HOST_NAME);
         }
+        Client c = new Client(clientName);
         new Thread(c).start();
         println("Client Started...");
         printCommands();
