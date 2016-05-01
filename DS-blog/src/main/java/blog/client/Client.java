@@ -158,14 +158,15 @@ public class Client implements Runnable {
         println("Please enter the datacenter name you want to connect to:");
         String dataCenterName = scan.nextLine().trim();
         println("DataCenter Connected To:" + dataCenterName);
-        new Thread(c).start();
+     
 
         System.out.println("Please enter MQ address for communication(Or empty for default domain:rabbitmq)");
         String host = scan.nextLine().trim();
         if (host != null && host.length() != 0) {
             Common.MQ_HOST_NAME = host;
+            System.out.println("MQ Host" + Common.MQ_HOST_NAME);
         }
-        
+        new Thread(c).start();
         println("Client Started...");
         printCommands();
 
