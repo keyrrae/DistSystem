@@ -144,7 +144,7 @@ public class Client implements Runnable {
         println("sync(s) <datacenter>");
         println("  - Synchronize with Datacenter");
         println("=================================================");
-        printf("> ");
+
     }
 
     public static void main(String[] args) throws IOException, TimeoutException, InterruptedException {
@@ -230,8 +230,12 @@ public class Client implements Runnable {
                 println("exiting...");
                 exit(0);
             }
-            else {
+            else if (blogArgs[0].equals("help") || blogArgs[0].equals("h")){
                 printCommands();
+                printf("> ");
+            }
+            else {
+                printf("> ");
             }
         } // while
     }
