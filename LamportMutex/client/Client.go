@@ -3,12 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
+	"net/rpc"
 	"os"
 	"strconv"
-	"time"
 	"strings"
-	"net/rpc"
-	"log"
+	"time"
 )
 
 func printUsage() {
@@ -17,55 +17,69 @@ func printUsage() {
 	fmt.Println("e.g    buy 5")
 }
 
-
 func newRPCclient(protocol string, address string) *rpc.Client {
 	client, err := rpc.DialHTTP(protocol, address)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
-	
+
 	return client
 }
 
 func handleUserInput(command string) {
-	
+
 	// Parse a command from user
 	tokens := strings.Fields(command)
 	fmt.Println(tokens)
-	
+
 	if len(tokens) == 0 || len(tokens) > 2 {
 		return
 	}
-	
-	switch tokens[0] {
-	case "h":
-		fallthrough
-	case "help":
-		printUsage()
-	case "b":
-		fallthrough
-	case "buy":
-		amount, err := strconv.ParseInt(tokens[1], 10, 32)
-		if err != nil {
-			printUsage()
-			break
+
+	switch len(tokens) {
+	case 1:
+		{
+			switch tokens[0] {
+			case "h":
+				fallthrough
+			case "help":
+				printUsage()
+			case "e":
+				fallthrough
+			case "exit":
+				fallthrough
+			case "q":
+				fallthrough
+			case "quit":
+				os.Exit(0)
+			default:
+				printUsage()
+			}
 		}
-		buyTicket(amount)
-	case "e":
-		fallthrough
-	case "exit":
-		fallthrough
-	case "q":
-		fallthrough
-	case "quit":
-		os.Exit(0)
+	case 2:
+		{
+			switch tokens[0] {
+			case "b":
+				fallthrough
+			case "buy":
+				amount, err := strconv.ParseInt(tokens[1], 10, 32)
+				if err != nil {
+					printUsage()
+					break
+				}
+				buyTicket(int(amount))
+			default:
+				printUsage()
+			}
+
+		}
+
 	}
 }
 
-
-func buyTicket(amount int){
+func buyTicket(amount int) {
 	// Synchronous call
-	args := Args{7}
+	args := Args{amount}
 	var reply int
 	err := rpcClient.Call("Mutex.Decrease", args, &reply)
 	if err != nil {
@@ -86,22 +100,21 @@ func waitUserInput() {
 	}
 }
 
-type Args struct{
+type Args struct {
 	BuyTickets int
 }
 
 var rpcClient *rpc.Client
 var serverAddress string
 
-func init(){
+func init() {
 	serverAddress = ReadConfig()
-	
+
 	rpcClient = newRPCclient("tcp", serverAddress)
 }
 
 func main() {
-	
-	
+
 	fmt.Println("ServerAddress:", serverAddress)
 	fmt.Println()
 
