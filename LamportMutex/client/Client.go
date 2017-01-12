@@ -81,9 +81,9 @@ func buyTicket(amount int) {
 	// Synchronous call
 	args := Args{amount}
 	var reply int
-	err := rpcClient.Call("Mutex.Decrease", args, &reply)
+	err := rpcClient.Call("Mutex.BuyTicketRequest", args, &reply)
 	if err != nil {
-		log.Fatal("Error:", err)
+		log.Fatal("Error:ddd", err)
 	}
 	fmt.Println("Remaining tickets:", reply)
 	//time.Sleep(100 * time.Millisecond)

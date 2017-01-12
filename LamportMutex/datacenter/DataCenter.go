@@ -2,33 +2,48 @@ package main
 
 import (
 	"fmt"
-	"net/rpc"
 	"net/http"
+	"net/rpc"
 )
 
-type Args struct{
+type Args struct {
 	BuyTickets int
 }
 
-type Mutex struct{
+type Mutex struct {
 	value int
 }
 
-func (t *Mutex) Decrease(args *Args, reply *int) error {
-	t.value -= args.BuyTickets
-	*reply = t.value
+func (t *Mutex) BuyTicketRequest(args *Args, reply *int) error {
+	conf.RemainingTickets -= args.BuyTickets
+	lamClock.logicalClock++
+	lamClockCopy := &Request{
+		request: args.BuyTickets,
+		clock: LamportClock{lamClock.logicalClock, lamClock.procId},
+	}
+	
+	waitQueue.Push(lamClockCopy)
+	*reply = conf.RemainingTickets
 	return nil
 }
 
-func main(){
-	conf := ReadConfig()
-	
+var waitQueue PriorityQueue
+var conf Config
+var lamClock LamportClock
+
+func init(){
+	conf = ReadConfig()
+	lamClock = LamportClock{0, conf.ProcessID}
+}
+
+func main() {
+
 	arith := new(Mutex)
 	arith.value = 1000
-	
+
 	rpc.Register(arith)
 	rpc.HandleHTTP()
-	
+
 	err := http.ListenAndServe(conf.Self, nil)
 	if err != nil {
 		fmt.Println(err.Error())

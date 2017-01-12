@@ -1,11 +1,12 @@
 package main
 
-type LamportClock struct{
-	clock, proc_id int64
+type LamportClock struct {
+	logicalClock    int64
+	procId          int
 }
 
-func NewLamportClock(proc_id int64) *LamportClock{
-	lamportClock := LamportClock{1, proc_id}
+func NewLamportClock(procId int) *LamportClock {
+	lamportClock := LamportClock{1, procId}
 	return &lamportClock
 }
 
