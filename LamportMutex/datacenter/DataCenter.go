@@ -17,9 +17,12 @@ func init() {
 
 func main() {
 
-	arith := new(Mutex)
-	arith.value = 1000
-	rpc.Register(arith)
+	clientComm := new(ClientComm)
+	
+	dataCenterComm := new(DataCenterComm)
+	clientComm.value = 1000
+	rpc.Register(clientComm)
+	rpc.Register(dataCenterComm)
 	rpc.HandleHTTP()
 	
 	go EstablishConnections()

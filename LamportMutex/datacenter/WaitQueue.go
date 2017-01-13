@@ -6,10 +6,16 @@ import (
 
 // An Item is something we manage in a priority queue.
 type Request struct {
-	request int          `json:"request"` // The value of the item; arbitrary.
-	clock   LamportClock `json:"clock"`   // The priority of the item in the queue.
+	Request int          `json:"request"` // The value of the item; arbitrary.
+	Clock   LamportClock `json:"clock"`   // The priority of the item in the queue.
 	// The index is needed by update and is maintained by the heap.Interface methods.
 	index int `json:"index"` // The index of the item in the heap.
+}
+
+func (a Request) equalsTo(b Request) bool{
+	logicalClockEquality := a.Clock.LogicalClock == b.Clock.LogicalClock
+	procIdEquality := a.Clock.ProcId == b.Clock.ProcId
+	return  logicalClockEquality && procIdEquality
 }
 
 // A PriorityQueue implements heap.Interface and holds Items.
@@ -19,12 +25,12 @@ func (pq PriorityQueue) Len() int { return len(pq) }
 
 func (pq PriorityQueue) Less(i, j int) bool {
 	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
-	if pq[i].clock.logicalClock < pq[j].clock.logicalClock {
+	if pq[i].Clock.LogicalClock < pq[j].Clock.LogicalClock {
 		return true
 	}
 
-	if pq[i].clock.logicalClock == pq[j].clock.logicalClock {
-		if pq[i].clock.procId < pq[j].clock.procId {
+	if pq[i].Clock.LogicalClock == pq[j].Clock.LogicalClock {
+		if pq[i].Clock.ProcId < pq[j].Clock.ProcId {
 			return true
 		}
 	}
@@ -53,9 +59,15 @@ func (pq *PriorityQueue) Pop() interface{} {
 	return item
 }
 
+func (pq *PriorityQueue) Peek() *Request {
+	n := len(*pq)
+	item := (*pq)[n-1]
+	return item
+}
+
 // update modifies the priority and value of an Request in the queue.
 func (pq *PriorityQueue) update(item *Request, value int, priority LamportClock) {
-	item.request = value
-	item.clock = priority
+	item.Request = value
+	item.Clock = priority
 	heap.Fix(pq, item.index)
 }

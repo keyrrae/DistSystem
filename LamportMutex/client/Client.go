@@ -75,7 +75,7 @@ func buyTicket(amount int) {
 	// Synchronous call
 	args := Args{amount}
 	var reply int
-	err := rpcClient.Call("Mutex.BuyTicketRequest", args, &reply)
+	err := rpcClient.Call("ClientComm.BuyTicketRequest", args, &reply)
 	if err != nil {
 		log.Fatal("Error:ddd", err)
 	}

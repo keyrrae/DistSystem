@@ -4,26 +4,164 @@ import (
 	"log"
 	"net/rpc"
 	"time"
+	"fmt"
+	"sync"
 )
 
 type Args struct {
 	BuyTickets int
 }
 
-type Mutex struct {
+type ClientComm struct {
 	value int
 }
 
-func (t *Mutex) BuyTicketRequest(args *Args, reply *int) error {
-	conf.RemainingTickets -= args.BuyTickets
-	lamClock.logicalClock++
+const (
+	ASK = "ASK"
+	RELEASE = "RELEASE"
+)
+
+func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
+	//conf.RemainingTickets -= args.BuyTickets
+	lamClock.LogicalClock++
 	changeRequest := &Request{
-		request: args.BuyTickets,
-		clock:   LamportClock{lamClock.logicalClock, lamClock.procId},
+		Request: args.BuyTickets,
+		Clock:   LamportClock{lamClock.LogicalClock, lamClock.ProcId},
 	}
 
 	waitQueue.Push(changeRequest)
+	
+	// TODO: send and receive from other data centers
+	req := DataCenterRequest{
+		RequestType: ASK,
+		RequestBody: *changeRequest,
+	}
+	
+	lock := &sync.Mutex{}
+	count := 0
+	
+	done := make(chan bool)
+	
+	go func(){
+		for{
+			lock.Lock()
+			if count == conf.NumOfServers(){
+				
+				done <- true
+			}
+			lock.Unlock()
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+	
+	for _, server := range connections{
+			
+			dataCenterReply := new(DataCenterReply)
+			divCall := server.Go("DataCenterComm.CriticalSectionRequest", req, dataCenterReply, nil)
+		
+		go func(){
+			replyCall := <-divCall.Done
+			
+			gotReply := replyCall.Reply.(*DataCenterReply)
+			if gotReply.Grant{
+				lock.Lock()
+				count++
+				lock.Unlock()
+			}
+			fmt.Println(gotReply.Grant)
+		}()
+	}
+	
+	<- done
+	conf.RemainingTickets -= changeRequest.Request
 	*reply = conf.RemainingTickets
+	
+	for _, server := range connections{
+		
+		dataCenterReply := new(DataCenterReply)
+		req = DataCenterRequest{
+			RequestType: RELEASE,
+			RequestBody: *changeRequest,
+		}
+		releaseCall := server.Go("DataCenterComm.CriticalSectionRequest", req, dataCenterReply, nil)
+		_ = releaseCall
+		/*
+		go func(){
+			replyCall := <-divCall.Done
+			
+			gotReply := replyCall.Reply.(*DataCenterReply)
+			if gotReply.Grant{
+				lock.Lock()
+				count++
+				lock.Unlock()
+			}
+			fmt.Println(gotReply.Grant)
+		}()*/
+	}
+	return nil
+}
+
+type DataCenterComm struct {
+	value int
+}
+
+type DataCenterRequest struct{
+	RequestType string
+	RequestBody Request
+}
+
+type DataCenterReply struct {
+	Grant bool
+	TimeStamp LamportClock
+}
+
+func max(a int64, b int64) int64{
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *DataCenterReply) error {
+	lamClock.LogicalClock = max(req.RequestBody.Clock.LogicalClock, lamClock.LogicalClock) + 1
+	// TODO: identify request type
+	fmt.Println(req.RequestType)
+	
+	switch req.RequestType{
+	case ASK:
+		waitQueue.Push(&(req.RequestBody))
+		if req.RequestBody.equalsTo(*(waitQueue.Peek())){
+			reply.Grant = true
+			reply.TimeStamp = lamClock
+			
+		} else{
+			reply.Grant = false
+			reply.TimeStamp = lamClock
+		}
+	case RELEASE:
+		conf.RemainingTickets -= req.RequestBody.Request
+	default:
+		
+	}
+	/*
+	changeRequest := &Request{
+		request: req.RequestBody.request,
+		clock:   LamportClock{req.RequestBody.clock.logicalClock, req.RequestBody.clock.procId},
+	}
+	
+	waitQueue.Push(changeRequest)
+	
+	if changeRequest.equalsTo(*(waitQueue.Peek())){
+		reply = &DataCenterReply{
+			Grant: true,
+			TimeStamp: *(changeRequest.clock),
+		}
+	} else{
+		
+	}
+	*/
+	//TODO: reply
+	
 	return nil
 }
 
@@ -65,6 +203,8 @@ func EstablishConnections() {
 			}
 		}
 		if connectionCounter == conf.NumOfServers() {
+			fmt.Println("Number of clients:", conf.NumOfServers())
+			//fmt.Println(connections)
 			allConnected = true
 			break
 		}
