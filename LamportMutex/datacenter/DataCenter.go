@@ -6,14 +6,6 @@ import (
 	"net/rpc"
 )
 
-type Args struct {
-	BuyTickets int
-}
-
-type Mutex struct {
-	value int
-}
-
 var waitQueue PriorityQueue
 var conf Config
 var lamClock LamportClock
@@ -27,11 +19,12 @@ func main() {
 
 	arith := new(Mutex)
 	arith.value = 1000
-	
-	EstablishConnections()
 	rpc.Register(arith)
 	rpc.HandleHTTP()
-
+	
+	go EstablishConnections()
+	go waitUserInput()
+	
 	err := http.ListenAndServe(conf.Self, nil)
 	if err != nil {
 		fmt.Println(err.Error())

@@ -84,6 +84,7 @@ func buyTicket(amount int) {
 }
 
 func waitUserInput() {
+	printUsage()
 	for {
 		// command line user interface
 		reader := bufio.NewReader(os.Stdin)

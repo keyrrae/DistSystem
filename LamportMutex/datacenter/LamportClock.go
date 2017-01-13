@@ -1,8 +1,8 @@
 package main
 
 type LamportClock struct {
-	logicalClock int64
-	procId       int
+	logicalClock int64  `json:"logical_clock"`
+	procId       int    `json:"proc_id"`
 }
 
 func NewLamportClock(procId int) *LamportClock {
