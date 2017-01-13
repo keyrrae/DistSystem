@@ -7,10 +7,11 @@ import (
 )
 
 type Server struct {
-	Address string `json:"address"`
+	Address     string `json:"address"`
+	MaxAttempts int    `json:"max_attempts"`
 }
 
-func ReadConfig() string {
+func ReadConfig() Server {
 	var server Server
 
 	file, err := ioutil.ReadFile("./client.conf")
@@ -23,5 +24,5 @@ func ReadConfig() string {
 		log.Fatal(err, "\r\n")
 	}
 
-	return server.Address
+	return server
 }

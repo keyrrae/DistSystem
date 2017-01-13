@@ -6,8 +6,8 @@ import (
 
 // An Item is something we manage in a priority queue.
 type Request struct {
-	request    int // The value of the item; arbitrary.
-	clock LamportClock    // The priority of the item in the queue.
+	request int          // The value of the item; arbitrary.
+	clock   LamportClock // The priority of the item in the queue.
 	// The index is needed by update and is maintained by the heap.Interface methods.
 	index int // The index of the item in the heap.
 }
@@ -22,9 +22,9 @@ func (pq PriorityQueue) Less(i, j int) bool {
 	if pq[i].clock.logicalClock < pq[j].clock.logicalClock {
 		return true
 	}
-	
-	if pq[i].clock.logicalClock == pq[j].clock.logicalClock{
-		if pq[i].clock.procId < pq[j].clock.procId{
+
+	if pq[i].clock.logicalClock == pq[j].clock.logicalClock {
+		if pq[i].clock.procId < pq[j].clock.procId {
 			return true
 		}
 	}

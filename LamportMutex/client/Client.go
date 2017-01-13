@@ -17,15 +17,6 @@ func printUsage() {
 	fmt.Println("e.g    buy 5")
 }
 
-func newRPCclient(protocol string, address string) *rpc.Client {
-	client, err := rpc.DialHTTP(protocol, address)
-	if err != nil {
-		log.Fatal("dialing:", err)
-	}
-
-	return client
-}
-
 func handleUserInput(command string) {
 
 	// Parse a command from user
@@ -105,17 +96,37 @@ type Args struct {
 }
 
 var rpcClient *rpc.Client
-var serverAddress string
+var server Server
+
+func newRPCclient(protocol string, server Server) *rpc.Client {
+	var client *rpc.Client
+	var err error
+	var i int
+	for i = 0; i < server.MaxAttempts; i++ {
+		client, err = rpc.DialHTTP(protocol, server.Address)
+		if err != nil {
+			log.Println("dialing:", err.Error()+", retrying...")
+			time.Sleep(1000 * time.Millisecond)
+		} else {
+			break
+		}
+	}
+
+	if i == server.MaxAttempts {
+		log.Fatal("Maximum attempts, cannot connect to the server")
+	}
+	return client
+}
 
 func init() {
-	serverAddress = ReadConfig()
+	server = ReadConfig()
 
-	rpcClient = newRPCclient("tcp", serverAddress)
+	rpcClient = newRPCclient("tcp", server)
 }
 
 func main() {
 
-	fmt.Println("ServerAddress:", serverAddress)
+	fmt.Println("ServerAddress:", server.Address)
 	fmt.Println()
 
 	fmt.Println("Starting Ticket Services")
