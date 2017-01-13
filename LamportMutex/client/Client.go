@@ -12,9 +12,12 @@ import (
 )
 
 func printUsage() {
-	fmt.Println("To buy tickets, enter:")
-	fmt.Println("       buy [amount of tickets]")
+	fmt.Println("To buy tickets, enter:  buy/b [amount of tickets]")
 	fmt.Println("e.g    buy 5")
+	fmt.Println()
+	fmt.Println("To exit, enter: e/exit/q/quit")
+	fmt.Println()
+	fmt.Println("For help, enter: help/h")
 }
 
 func handleUserInput(command string) {

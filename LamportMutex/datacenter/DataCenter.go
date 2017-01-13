@@ -14,19 +14,6 @@ type Mutex struct {
 	value int
 }
 
-func (t *Mutex) BuyTicketRequest(args *Args, reply *int) error {
-	conf.RemainingTickets -= args.BuyTickets
-	lamClock.logicalClock++
-	changeRequest := &Request{
-		request: args.BuyTickets,
-		clock:   LamportClock{lamClock.logicalClock, lamClock.procId},
-	}
-
-	waitQueue.Push(changeRequest)
-	*reply = conf.RemainingTickets
-	return nil
-}
-
 var waitQueue PriorityQueue
 var conf Config
 var lamClock LamportClock
@@ -40,7 +27,8 @@ func main() {
 
 	arith := new(Mutex)
 	arith.value = 1000
-
+	
+	EstablishConnections()
 	rpc.Register(arith)
 	rpc.HandleHTTP()
 

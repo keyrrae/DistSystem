@@ -12,10 +12,15 @@ type Config struct {
 	ProcessID        int      `json:"processid"`
 	Servers          []Server `json:"servers"`
 	RemainingTickets int      `json:"tickets"`
+	MaxAttempts      int      `json:"max_attempts"`
 }
 
 type Server struct {
 	Address string `json:"address"`
+}
+
+func (conf Config) NumOfServers() int {
+	return len(conf.Servers)
 }
 
 func ReadConfig() Config {
