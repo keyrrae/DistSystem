@@ -10,4 +10,21 @@ func NewLamportClock(procId int) *LamportClock {
 	return &lamportClock
 }
 
-//func (this *LamportClock)
+func (this *LamportClock) equalsTo( that LamportClock) bool {
+	return this.LogicalClock == that.LogicalClock && this.ProcId == that.ProcId
+}
+
+func (this *LamportClock) smallerThan(that LamportClock) bool{
+	if this.LogicalClock < that.LogicalClock{
+		return true
+	}
+	
+	if this.LogicalClock == that.LogicalClock{
+		return this.ProcId < that.ProcId
+	}
+	return false
+}
+
+func (this *LamportClock) largerThan( that LamportClock) bool{
+	return !this.equalsTo(that) && !this.smallerThan(that)
+}

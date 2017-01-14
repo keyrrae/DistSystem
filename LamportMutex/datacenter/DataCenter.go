@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/rpc"
+	"sync"
 )
 
 var waitQueue PriorityQueue
@@ -14,9 +15,11 @@ func init() {
 	conf = ReadConfig()
 	lamClock = LamportClock{0, conf.ProcessID}
 }
+var lock *sync.Mutex
 
 func main() {
-
+	
+	lock = &sync.Mutex{}
 	clientComm := new(ClientComm)
 	
 	dataCenterComm := new(DataCenterComm)

@@ -64,6 +64,10 @@ func handleUserInput(command string) {
 		for _, item:= range tempList{
 			heap.Push(&PriorityQueue{}, item)
 		}
+	case "pt":
+		clockJson, _ := json.MarshalIndent(&lamClock, "", "    ")
+		fmt.Println(string(clockJson))
+	
 	default:
 		printUsage()
 	}
