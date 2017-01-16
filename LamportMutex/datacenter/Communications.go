@@ -1,10 +1,11 @@
 package main
 
 import (
+	"container/heap"
+	"fmt"
 	"log"
 	"net/rpc"
 	"time"
-	"fmt"
 )
 
 type Args struct {
@@ -16,121 +17,122 @@ type ClientComm struct {
 }
 
 const (
-	ASK = "ASK"
+	ASK     = "ASK"
 	RELEASE = "RELEASE"
 )
 
 func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
-	lamClock.LogicalClock++
-	
+	//lamClock.LogicalClock++
+
 	// piggybacking time stamp with request
 	changeRequest := &Request{
 		Request: args.BuyTickets,
 		Clock:   LamportClock{lamClock.LogicalClock, lamClock.ProcId},
 	}
-	
+
 	// places the request on waitQueue
-	waitQueue.Push(changeRequest)
-	
-	// TODO: send and receive from other data centers
+	heap.Push(&waitQueue, changeRequest)
+
 	// sends request message to all sites
-	
 	// asking for permission to enter critical section
 	req := DataCenterRequest{
 		RequestType: ASK,
 		RequestBody: *changeRequest,
 	}
-	
+
 	count := 0
 	done := make(chan bool)
-		
-	go func(){
-		for{
+
+	go func() {
+		for {
 			// has received messages with larger timestamps from all other sites
 			allOtherSitesAgree := count == conf.NumOfServers()
-			
 			// request is at the top of waitQueue
 			requestAtTop := changeRequest.Clock.equalsTo(waitQueue.Peek().Clock)
-			
+
 			if allOtherSitesAgree && requestAtTop {
 				done <- true
 				break
 			}
-		
-			time.Sleep(1000 * time.Millisecond)
+
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 
-	for _, server := range connections{
-			
+	for _, server := range connections {
+
 		dataCenterReply := new(DataCenterReply)
 		divCall := server.Go("DataCenterComm.CriticalSectionRequest", req, dataCenterReply, nil)
-		
-		go func(){
+
+		go func() {
 			replyCall := <-divCall.Done
 			gotReply := replyCall.Reply.(*DataCenterReply)
-			
+
 			lamClock.LogicalClock = max(gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock) + 1
+
+			time.Sleep(5 * time.Second)
+
 			// increase the counter if got larger time stamp
-			if gotReply.TimeStamp.largerThan(changeRequest.Clock){
+			if gotReply.TimeStamp.largerThan(changeRequest.Clock) {
 				count++
 			}
 
 		}()
 	}
-	
-	<- done  // block the main thread
-	
+
+	<-done // block the main thread
+
 	var releaseDecAmount int
 	if conf.RemainingTickets < changeRequest.Request {
 		releaseDecAmount = 0
 	} else {
 		releaseDecAmount = changeRequest.Request
 	}
-	
-	waitQueue.Pop()
+
+	heap.Pop(&waitQueue)
 	releaseRequest := &Request{
 		Request: releaseDecAmount,
 		Clock:   LamportClock{lamClock.LogicalClock, lamClock.ProcId},
 	}
-	
+
 	conf.RemainingTickets -= releaseDecAmount
 	*reply = conf.RemainingTickets
 	count = 0
-	
+
 	go func() {
 		for {
 			// has received messages with larger timestamps from all other sites
 			allOtherSitesAgree := count == conf.NumOfServers()
-						
+
 			if allOtherSitesAgree {
 				done <- true
 				break
 			}
-			
+
 			time.Sleep(100 * time.Millisecond)
 		}
 	}()
-	
-	for _, server := range connections{
-		
+
+	for _, server := range connections {
+
 		dataCenterReply := new(DataCenterReply)
 		req = DataCenterRequest{
 			RequestType: RELEASE,
 			RequestBody: *releaseRequest,
 		}
 		releaseCall := server.Go("DataCenterComm.CriticalSectionRequest", req, dataCenterReply, nil)
-		
-		go func(){
+
+		go func() {
 			replyCall := <-releaseCall.Done
-			
+
 			gotReply := replyCall.Reply.(*DataCenterReply)
-		
+			time.Sleep(5 * time.Second)
+
 			lamClock.LogicalClock = max(gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock) + 1
 			count++
 		}()
 	}
-	<- done
+	<-done
 	return nil
 }
 
@@ -138,7 +140,7 @@ type DataCenterComm struct {
 	value int
 }
 
-type DataCenterRequest struct{
+type DataCenterRequest struct {
 	RequestType string
 	RequestBody Request
 }
@@ -147,7 +149,7 @@ type DataCenterReply struct {
 	TimeStamp LamportClock
 }
 
-func max(a int64, b int64) int64{
+func max(a int64, b int64) int64 {
 	if a > b {
 		return a
 	}
@@ -155,35 +157,40 @@ func max(a int64, b int64) int64{
 }
 
 func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *DataCenterReply) error {
+
+	time.Sleep(5 * time.Second)
 	// upon receives a request, increase the logic clock
 	lamClock.LogicalClock = max(req.RequestBody.Clock.LogicalClock, lamClock.LogicalClock) + 1
-	
+
 	fmt.Println()
-	fmt.Print(req.RequestType)
-	
-	switch req.RequestType{
+	log.Printf("Received a %v request from process %v.", req.RequestType, req.RequestBody.Clock.ProcId)
+
+	switch req.RequestType {
 	case ASK:
 		// receives a request asking to enter critical section
 		// reply with timestamp of this site
 		reply.TimeStamp = lamClock
-		
+
 		// push request to waitQueue
-		waitQueue.Push(&(req.RequestBody))
+		heap.Push(&waitQueue, &(req.RequestBody))
 	case RELEASE:
-		waitQueue.Pop()
+		heap.Pop(&waitQueue)
 		conf.RemainingTickets -= req.RequestBody.Request
 		fmt.Println()
 		fmt.Print("> ")
 	default:
-		
+
 	}
 	return nil
 }
 
 var connectionStatus map[string]bool
 
+// Reference to all the rpc clients
 type Connections []*rpc.Client
 var connections Connections
+
+// Indicator -- whether this data center has connected to all the other data centers
 var allConnected bool
 
 func EstablishConnections() {
@@ -206,7 +213,7 @@ func EstablishConnections() {
 			if connectionStatus[server.Address] {
 				continue
 			}
-			
+
 			client, err := rpc.DialHTTP("tcp", server.Address)
 			if err != nil {
 				log.Println("dialing:", err.Error()+", retrying...")

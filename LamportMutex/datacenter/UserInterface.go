@@ -1,13 +1,12 @@
 package main
 
 import (
-	"os"
-	"fmt"
 	"bufio"
-	"time"
-	"strings"
 	"encoding/json"
-	"container/heap"
+	"fmt"
+	"os"
+	"strings"
+	"time"
 )
 
 func printUsage() {
@@ -23,16 +22,16 @@ func handleUserInput(command string) {
 	// Parse a command from user
 	tokens := strings.Fields(command)
 	fmt.Println(tokens)
-	
-	if len(tokens) == 0{
+
+	if len(tokens) == 0 {
 		return
 	}
-	
+
 	if len(tokens) > 1 {
 		printUsage()
 		return
 	}
-	
+
 	switch tokens[0] {
 	case "h":
 		fallthrough
@@ -54,35 +53,29 @@ func handleUserInput(command string) {
 	case "pq":
 		// Take the items out; they arrive in decreasing priority order.
 		// TODO: find a better way to print a priority queue
-		var tempList []*Request
-		for waitQueue.Len() > 0 {
-			item := heap.Pop(&waitQueue).(*Request)
-			tempList = append(tempList, item)
+		for _, item := range waitQueue {
 			itemJson, _ := json.MarshalIndent(item, "", "    ")
 			fmt.Println(string(itemJson))
-		}
-		for _, item:= range tempList{
-			heap.Push(&PriorityQueue{}, item)
 		}
 	case "pt":
 		clockJson, _ := json.MarshalIndent(&lamClock, "", "    ")
 		fmt.Println(string(clockJson))
-	
+
 	default:
 		printUsage()
 	}
 }
 
 func waitUserInput() {
-	for{
-		if allConnected{
+	for {
+		if allConnected {
 			break
 		}
-		time.Sleep(1000*time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 	}
 	printUsage()
 	fmt.Print("> ")
-	
+
 	for {
 		// command line user interface
 		reader := bufio.NewReader(os.Stdin)

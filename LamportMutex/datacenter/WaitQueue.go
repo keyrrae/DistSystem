@@ -9,13 +9,13 @@ type Request struct {
 	Request int          `json:"request"` // The value of the item; arbitrary.
 	Clock   LamportClock `json:"clock"`   // The priority of the item in the queue.
 	// The index is needed by update and is maintained by the heap.Interface methods.
-	index int `json:"index"` // The index of the item in the heap.
+	Index int `json:"index"` // The index of the item in the heap.
 }
 
-func (a Request) equalsTo(b Request) bool{
+func (a Request) equalsTo(b Request) bool {
 	logicalClockEquality := a.Clock.LogicalClock == b.Clock.LogicalClock
 	procIdEquality := a.Clock.ProcId == b.Clock.ProcId
-	return  logicalClockEquality && procIdEquality
+	return logicalClockEquality && procIdEquality
 }
 
 // A PriorityQueue implements heap.Interface and holds Items.
@@ -25,28 +25,19 @@ func (pq PriorityQueue) Len() int { return len(pq) }
 
 func (pq PriorityQueue) Less(i, j int) bool {
 	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
-	if pq[i].Clock.LogicalClock < pq[j].Clock.LogicalClock {
-		return true
-	}
-
-	if pq[i].Clock.LogicalClock == pq[j].Clock.LogicalClock {
-		if pq[i].Clock.ProcId < pq[j].Clock.ProcId {
-			return true
-		}
-	}
-	return false
+	return pq[i].Clock.smallerThan(pq[j].Clock)
 }
 
 func (pq PriorityQueue) Swap(i, j int) {
 	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
+	pq[i].Index = i
+	pq[j].Index = j
 }
 
 func (pq *PriorityQueue) Push(x interface{}) {
 	n := len(*pq)
 	item := x.(*Request)
-	item.index = n
+	item.Index = n
 	*pq = append(*pq, item)
 }
 
@@ -54,14 +45,15 @@ func (pq *PriorityQueue) Pop() interface{} {
 	old := *pq
 	n := len(old)
 	item := old[n-1]
-	item.index = -1 // for safety
+	item.Index = -1 // for safety
 	*pq = old[0 : n-1]
 	return item
 }
 
 func (pq *PriorityQueue) Peek() *Request {
-	n := len(*pq)
-	item := (*pq)[n-1]
+	//n := len(*pq)
+	//item := (*pq)[n-1]
+	item := (*pq)[0]
 	return item
 }
 
@@ -69,5 +61,5 @@ func (pq *PriorityQueue) Peek() *Request {
 func (pq *PriorityQueue) update(item *Request, value int, priority LamportClock) {
 	item.Request = value
 	item.Clock = priority
-	heap.Fix(pq, item.index)
+	heap.Fix(pq, item.Index)
 }
