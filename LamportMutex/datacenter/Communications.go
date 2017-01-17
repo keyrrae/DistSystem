@@ -158,12 +158,12 @@ func max(a int64, b int64) int64 {
 
 func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *DataCenterReply) error {
 
-	time.Sleep(5 * time.Second)
 	// upon receives a request, increase the logic clock
 	lamClock.LogicalClock = max(req.RequestBody.Clock.LogicalClock, lamClock.LogicalClock) + 1
 
 	fmt.Println()
-	log.Printf("Received a %v request from process %v.", req.RequestType, req.RequestBody.Clock.ProcId)
+	log.Printf("Received a %v request from process %v with logical clock %v.\n",
+		req.RequestType, req.RequestBody.Clock.ProcId, req.RequestBody.Clock.LogicalClock)
 
 	switch req.RequestType {
 	case ASK:
@@ -181,6 +181,10 @@ func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *D
 	default:
 
 	}
+	time.Sleep(5 * time.Second)
+	
+	log.Printf("Replied to process %v\n", req.RequestBody.Clock.ProcId)
+	
 	return nil
 }
 
