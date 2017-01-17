@@ -21,9 +21,19 @@ const (
 	RELEASE = "RELEASE"
 )
 
-func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
-	//lamClock.LogicalClock++
+func delay(){
+	if conf.Delay == 0{
+		return
+	}
+	time.Sleep(time.Duration(conf.Delay) * time.Second)
+}
 
+func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
+	// simulating a message delay
+	delay()
+	log.Println()
+	log.Print("Received a BUY TICKET request from a client")
+	
 	// piggybacking time stamp with request
 	changeRequest := &Request{
 		Request: args.BuyTickets,
@@ -54,6 +64,7 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 				done <- true
 				break
 			}
+			// TODO: replace this wait loop with channel
 
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -69,8 +80,9 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 			gotReply := replyCall.Reply.(*DataCenterReply)
 
 			lamClock.LogicalClock = max(gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock) + 1
-
-			time.Sleep(5 * time.Second)
+			
+			// simulate delay of release request
+			delay()
 
 			// increase the counter if got larger time stamp
 			if gotReply.TimeStamp.largerThan(changeRequest.Clock) {
@@ -126,8 +138,8 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 			replyCall := <-releaseCall.Done
 
 			gotReply := replyCall.Reply.(*DataCenterReply)
-			time.Sleep(5 * time.Second)
-
+			delay()
+			
 			lamClock.LogicalClock = max(gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock) + 1
 			count++
 		}()
@@ -181,8 +193,7 @@ func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *D
 	default:
 
 	}
-	time.Sleep(5 * time.Second)
-	
+	delay()
 	log.Printf("Replied to process %v\n", req.RequestBody.Clock.ProcId)
 	
 	return nil

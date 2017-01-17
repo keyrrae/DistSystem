@@ -13,7 +13,8 @@ type Config struct {
 	Servers          []Server `json:"servers"`
 	RemainingTickets int      `json:"tickets"`
 	MaxAttempts      int      `json:"max_attempts"`
-	InitialTktNum   int
+	Delay            int      `json:"delay_in_seconds"`
+	InitialTktNum    int
 }
 
 type Server struct {
