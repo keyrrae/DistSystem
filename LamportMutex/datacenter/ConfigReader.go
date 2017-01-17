@@ -13,6 +13,7 @@ type Config struct {
 	Servers          []Server `json:"servers"`
 	RemainingTickets int      `json:"tickets"`
 	MaxAttempts      int      `json:"max_attempts"`
+	InitialTktNum   int
 }
 
 type Server struct {
@@ -40,6 +41,7 @@ func ReadConfig() Config {
 			conf.Servers = append(conf.Servers[:i], conf.Servers[i+1:]...)
 		}
 	}
+	conf.InitialTktNum = conf.RemainingTickets
 	fmt.Println(conf)
 	return conf
 }

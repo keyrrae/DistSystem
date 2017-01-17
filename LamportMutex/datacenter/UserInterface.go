@@ -14,6 +14,7 @@ func printUsage() {
 	fmt.Println("pq - print wait queue")
 	fmt.Println("pv - print amount of tickets")
 	fmt.Println("e/exit/q/quit - exit")
+	fmt.Println("rst - reset tickets and clock")
 	fmt.Println()
 	fmt.Println("For help, enter: help/h")
 }
@@ -60,7 +61,9 @@ func handleUserInput(command string) {
 	case "pt":
 		clockJson, _ := json.MarshalIndent(&lamClock, "", "    ")
 		fmt.Println(string(clockJson))
-
+	case "rst":
+		lamClock.LogicalClock = 1
+		conf.RemainingTickets = conf.InitialTktNum
 	default:
 		printUsage()
 	}
