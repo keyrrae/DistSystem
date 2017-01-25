@@ -22,8 +22,7 @@ func printUsage() {
 func handleUserInput(command string) {
 	// Parse a command from user
 	tokens := strings.Fields(command)
-	fmt.Println(tokens)
-
+	
 	if len(tokens) == 0 {
 		return
 	}
@@ -38,6 +37,7 @@ func handleUserInput(command string) {
 		fallthrough
 	case "help":
 		printUsage()
+		
 	case "e":
 		fallthrough
 	case "exit":
@@ -46,11 +46,18 @@ func handleUserInput(command string) {
 		fallthrough
 	case "quit":
 		os.Exit(0)
+		
+	case "config":
+		fallthrough
 	case "pc":
 		confJson, _ := json.MarshalIndent(&conf, "", "    ")
 		fmt.Println(string(confJson))
+		
+	case "value":
+		fallthrough
 	case "pv":
 		fmt.Println("Remaining tickets:", conf.RemainingTickets)
+		
 	case "pq":
 		// Take the items out; they arrive in decreasing priority order.
 		// TODO: find a better way to print a priority queue
@@ -58,12 +65,17 @@ func handleUserInput(command string) {
 			itemJson, _ := json.MarshalIndent(item, "", "    ")
 			fmt.Println(string(itemJson))
 		}
+		
+	case "time":
+		fallthrough
 	case "pt":
 		clockJson, _ := json.MarshalIndent(&lamClock, "", "    ")
 		fmt.Println(string(clockJson))
+		
 	case "rst":
 		lamClock.LogicalClock = 1
 		conf.RemainingTickets = conf.InitialTktNum
+		
 	default:
 		printUsage()
 	}

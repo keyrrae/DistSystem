@@ -30,7 +30,7 @@ func delay(){
 
 func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 	// simulating a message delay
-	delay()
+	//delay()
 	log.Println()
 	log.Print("Received a BUY TICKET request from a client")
 	
@@ -80,6 +80,8 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 			gotReply := replyCall.Reply.(*DataCenterReply)
 
 			lamClock.LogicalClock = max(gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock) + 1
+			log.Printf("Received a reply from %v with logical clock %v. My clock now: %v\n",
+				gotReply.TimeStamp.ProcId, gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock)
 			
 			// simulate delay of release request
 			delay()
@@ -135,12 +137,8 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 		releaseCall := server.Go("DataCenterComm.CriticalSectionRequest", req, dataCenterReply, nil)
 
 		go func() {
-			replyCall := <-releaseCall.Done
-
-			gotReply := replyCall.Reply.(*DataCenterReply)
+			_ = <-releaseCall.Done
 			delay()
-			
-			lamClock.LogicalClock = max(gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock) + 1
 			count++
 		}()
 	}
@@ -169,19 +167,32 @@ func max(a int64, b int64) int64 {
 }
 
 func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *DataCenterReply) error {
-
+	
+	// Simulating request delay
+	delay()
+	
 	// upon receives a request, increase the logic clock
 	lamClock.LogicalClock = max(req.RequestBody.Clock.LogicalClock, lamClock.LogicalClock) + 1
 
 	fmt.Println()
-	log.Printf("Received a %v request from process %v with logical clock %v.\n",
-		req.RequestType, req.RequestBody.Clock.ProcId, req.RequestBody.Clock.LogicalClock)
+	
+	var article string = "a"
+	if req.RequestType == ASK {
+		article = "an"
+	}
+	
+	log.Printf("Received %v %v request from process %v with logical clock %v. My clock now: %v\n",
+		article,
+		req.RequestType, req.RequestBody.Clock.ProcId,
+		req.RequestBody.Clock.LogicalClock,
+		lamClock.LogicalClock)
 
 	switch req.RequestType {
 	case ASK:
 		// receives a request asking to enter critical section
 		// reply with timestamp of this site
-		reply.TimeStamp = lamClock
+		reply.TimeStamp.LogicalClock = lamClock.LogicalClock
+		reply.TimeStamp.ProcId = lamClock.ProcId
 
 		// push request to waitQueue
 		heap.Push(&waitQueue, &(req.RequestBody))
@@ -194,8 +205,9 @@ func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *D
 
 	}
 	delay()
-	log.Printf("Replied to process %v\n", req.RequestBody.Clock.ProcId)
-	
+	if req.RequestType == ASK {
+		log.Printf("Replied to process %v. My clock now: %v\n", req.RequestBody.Clock.ProcId, lamClock.LogicalClock)
+	}
 	return nil
 }
 
@@ -210,7 +222,6 @@ var allConnected bool
 
 func EstablishConnections() {
 	// Establishing connections to other data centers
-	// TODO: test this part
 	connectionCounter := 0
 	allConnected = false
 
@@ -241,7 +252,6 @@ func EstablishConnections() {
 		}
 		if connectionCounter == conf.NumOfServers() {
 			fmt.Println("Number of clients:", conf.NumOfServers())
-			//fmt.Println(connections)
 			allConnected = true
 			break
 		}

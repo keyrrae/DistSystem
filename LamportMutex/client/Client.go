@@ -24,7 +24,6 @@ func handleUserInput(command string) {
 
 	// Parse a command from user
 	tokens := strings.Fields(command)
-	fmt.Println(tokens)
 
 	if len(tokens) == 0 || len(tokens) > 2 {
 		return
