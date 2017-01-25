@@ -1,7 +1,7 @@
 import glob
 import sys
 sys.path.append('gen-py')
-sys.path.insert(0, glob.glob('../../lib/py/build/lib*')[0])
+sys.path.insert(0, glob.glob('./lib/py/build/lib*')[0])
 
 from tutorial import Calculator
 from tutorial.ttypes import InvalidOperation, Operation
@@ -64,7 +64,7 @@ class CalculatorHandler:
 if __name__ == '__main__':
     handler = CalculatorHandler()
     processor = Calculator.Processor(handler)
-    transport = TSocket.TServerSocket(port=9090)
+    transport = TSocket.TServerSocket(port=1234)
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
@@ -74,3 +74,8 @@ if __name__ == '__main__':
     # server = TServer.TThreadedServer(
     #     processor, transport, tfactory, pfactory)
     # server = TServer.TThreadPoolServer(
+    #     processor, transport, tfactory, pfactory)
+
+    print('Starting the server...')
+    server.serve()
+    print('done.')
