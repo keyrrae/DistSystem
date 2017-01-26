@@ -1,0 +1,18 @@
+{
+  "self": "127.0.0.1:1236",
+  "processid": 3,
+  "tickets": 5,
+  "max_attempts": 1000,
+  "delay_in_seconds": 5,
+  "servers": [
+    {
+      "address": "127.0.0.1:1234"
+    },
+    {
+      "address": "127.0.0.1:1235"
+    },
+    {
+      "address": "127.0.0.1:1236"
+    }
+  ]
+}
