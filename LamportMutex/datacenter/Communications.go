@@ -150,7 +150,6 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *ReplyToClient) error {
 		}()
 	}
 	<-done
-	waitingForInput = true
 	return nil
 }
 
@@ -190,10 +189,6 @@ func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest,
 
 	switch req.RequestType {
 	case ASK:
-		if waitingForInput {
-			waitingForInput = false
-			fmt.Println()
-		}
 		// receives a request asking to enter critical section
 		// reply with timestamp of this site
 		reply.TimeStamp.LogicalClock = lamClock.LogicalClock

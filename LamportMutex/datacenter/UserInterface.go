@@ -85,7 +85,6 @@ func handleUserInput(command string) {
 	}
 }
 
-var waitingForInput bool = true
 
 func waitUserInput() {
 	for {
@@ -98,9 +97,6 @@ func waitUserInput() {
 
 	for {
 		// command line user interface
-		if !waitingForInput{
-			continue
-		}
 		fmt.Print("> ")
 		reader := bufio.NewReader(os.Stdin)
 		command, _ := reader.ReadString('\n')
