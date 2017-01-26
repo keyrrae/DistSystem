@@ -16,6 +16,11 @@ type ClientComm struct {
 	value int
 }
 
+type ReplyToClient struct{
+	Success bool
+	Remains int
+}
+
 const (
 	ASK     = "ASK"
 	RELEASE = "RELEASE"
@@ -28,12 +33,12 @@ func delay(){
 	time.Sleep(time.Duration(conf.Delay) * time.Second)
 }
 
-func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
+func (t *ClientComm) BuyTicketRequest(args *Args, reply *ReplyToClient) error {
 	// simulating a message delay
 	//delay()
-	log.Println()
+	fmt.Println()
 	log.Print("Received a BUY TICKET request from a client")
-	
+
 	// piggybacking time stamp with request
 	changeRequest := &Request{
 		Request: args.BuyTickets,
@@ -82,7 +87,7 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 			lamClock.LogicalClock = max(gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock) + 1
 			log.Printf("Received a reply from %v with logical clock %v. My clock now: %v\n",
 				gotReply.TimeStamp.ProcId, gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock)
-			
+
 			// simulate delay of release request
 			delay()
 
@@ -99,8 +104,10 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 	var releaseDecAmount int
 	if conf.RemainingTickets < changeRequest.Request {
 		releaseDecAmount = 0
+		reply.Success = false
 	} else {
 		releaseDecAmount = changeRequest.Request
+		reply.Success = true
 	}
 
 	heap.Pop(&waitQueue)
@@ -110,7 +117,7 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 	}
 
 	conf.RemainingTickets -= releaseDecAmount
-	*reply = conf.RemainingTickets
+	reply.Remains = conf.RemainingTickets
 	count = 0
 
 	go func() {
@@ -143,6 +150,7 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *int) error {
 		}()
 	}
 	<-done
+	waitingForInput = true
 	return nil
 }
 
@@ -166,29 +174,26 @@ func max(a int64, b int64) int64 {
 	return b
 }
 
-func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *DataCenterReply) error {
-	
+func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest,
+	reply *DataCenterReply) error {
+
 	// Simulating request delay
 	delay()
-	
+
 	// upon receives a request, increase the logic clock
 	lamClock.LogicalClock = max(req.RequestBody.Clock.LogicalClock, lamClock.LogicalClock) + 1
 
-	fmt.Println()
-	
 	var article string = "a"
 	if req.RequestType == ASK {
 		article = "an"
 	}
-	
-	log.Printf("Received %v %v request from process %v with logical clock %v. My clock now: %v\n",
-		article,
-		req.RequestType, req.RequestBody.Clock.ProcId,
-		req.RequestBody.Clock.LogicalClock,
-		lamClock.LogicalClock)
 
 	switch req.RequestType {
 	case ASK:
+		if waitingForInput {
+			waitingForInput = false
+			fmt.Println()
+		}
 		// receives a request asking to enter critical section
 		// reply with timestamp of this site
 		reply.TimeStamp.LogicalClock = lamClock.LogicalClock
@@ -199,11 +204,16 @@ func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest, reply *D
 	case RELEASE:
 		heap.Pop(&waitQueue)
 		conf.RemainingTickets -= req.RequestBody.Request
-		fmt.Println()
-		fmt.Print("> ")
 	default:
 
 	}
+
+	log.Printf("Received %v %v request from process %v with logical clock %v. My clock now: %v\n",
+		article,
+		req.RequestType, req.RequestBody.Clock.ProcId,
+		req.RequestBody.Clock.LogicalClock,
+		lamClock.LogicalClock)
+
 	delay()
 	if req.RequestType == ASK {
 		log.Printf("Replied to process %v. My clock now: %v\n", req.RequestBody.Clock.ProcId, lamClock.LogicalClock)

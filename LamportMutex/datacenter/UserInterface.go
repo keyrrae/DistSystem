@@ -10,11 +10,11 @@ import (
 )
 
 func printUsage() {
-	fmt.Println("pc - print configuration")
-	fmt.Println("pq - print wait queue")
-	fmt.Println("pv - print amount of tickets")
+	fmt.Println("pc/config - print configuration")
+	fmt.Println("pq/queue - print wait queue")
+	fmt.Println("pv/value - print amount of tickets")
 	fmt.Println("e/exit/q/quit - exit")
-	fmt.Println("rst - reset tickets and clock")
+	fmt.Println("rst/reset - reset tickets and clock")
 	fmt.Println()
 	fmt.Println("For help, enter: help/h")
 }
@@ -22,7 +22,7 @@ func printUsage() {
 func handleUserInput(command string) {
 	// Parse a command from user
 	tokens := strings.Fields(command)
-	
+
 	if len(tokens) == 0 {
 		return
 	}
@@ -37,7 +37,7 @@ func handleUserInput(command string) {
 		fallthrough
 	case "help":
 		printUsage()
-		
+
 	case "e":
 		fallthrough
 	case "exit":
@@ -46,18 +46,20 @@ func handleUserInput(command string) {
 		fallthrough
 	case "quit":
 		os.Exit(0)
-		
+
 	case "config":
 		fallthrough
 	case "pc":
 		confJson, _ := json.MarshalIndent(&conf, "", "    ")
 		fmt.Println(string(confJson))
-		
+
 	case "value":
 		fallthrough
 	case "pv":
 		fmt.Println("Remaining tickets:", conf.RemainingTickets)
-		
+
+	case "queue":
+		fallthrough
 	case "pq":
 		// Take the items out; they arrive in decreasing priority order.
 		// TODO: find a better way to print a priority queue
@@ -65,21 +67,25 @@ func handleUserInput(command string) {
 			itemJson, _ := json.MarshalIndent(item, "", "    ")
 			fmt.Println(string(itemJson))
 		}
-		
+
 	case "time":
 		fallthrough
 	case "pt":
 		clockJson, _ := json.MarshalIndent(&lamClock, "", "    ")
 		fmt.Println(string(clockJson))
-		
+
+	case "reset":
+		fallthrough
 	case "rst":
 		lamClock.LogicalClock = 1
 		conf.RemainingTickets = conf.InitialTktNum
-		
+
 	default:
 		printUsage()
 	}
 }
+
+var waitingForInput bool = true
 
 func waitUserInput() {
 	for {
@@ -89,14 +95,16 @@ func waitUserInput() {
 		time.Sleep(1000 * time.Millisecond)
 	}
 	printUsage()
-	fmt.Print("> ")
 
 	for {
 		// command line user interface
+		if !waitingForInput{
+			continue
+		}
+		fmt.Print("> ")
 		reader := bufio.NewReader(os.Stdin)
 		command, _ := reader.ReadString('\n')
 		handleUserInput(command)
 		time.Sleep(80 * time.Millisecond)
-		fmt.Print("> ")
 	}
 }

@@ -28,7 +28,7 @@ func (conf Config) NumOfServers() int {
 func ReadConfig() Config {
 	var conf Config
 
-	file, err := ioutil.ReadFile("./servers.conf")
+	file, err := ioutil.ReadFile("./server_conf.json")
 	if err != nil {
 		log.Fatal(err, "\r\n")
 	}

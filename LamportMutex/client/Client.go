@@ -70,15 +70,26 @@ func handleUserInput(command string) {
 	}
 }
 
+type ReplyToClient struct{
+	Success bool
+	Remains int
+}
+
 func buyTicket(amount int) {
 	// Synchronous call
 	args := Args{amount}
-	var reply int
+	reply := new(ReplyToClient)
 	err := rpcClient.Call("ClientComm.BuyTicketRequest", args, &reply)
 	if err != nil {
 		log.Fatal("Error:ddd", err)
 	}
-	fmt.Println("Remaining tickets:", reply)
+
+	if reply.Success {
+		fmt.Printf("You have successfully bought %v tickets.\n", amount)
+	} else {
+		fmt.Println("Failed. No enough tickets to buy.")
+	}
+	fmt.Println("Remaining tickets:", reply.Remains)
 	//time.Sleep(100 * time.Millisecond)
 }
 

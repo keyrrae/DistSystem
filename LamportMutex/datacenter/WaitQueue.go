@@ -24,7 +24,8 @@ type PriorityQueue []*Request
 func (pq PriorityQueue) Len() int { return len(pq) }
 
 func (pq PriorityQueue) Less(i, j int) bool {
-	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
+	// We want Pop to give us the highest, not lowest,
+	// priority so we use greater than here.
 	return pq[i].Clock.smallerThan(pq[j].Clock)
 }
 
@@ -58,7 +59,8 @@ func (pq *PriorityQueue) Peek() *Request {
 }
 
 // update modifies the priority and value of an Request in the queue.
-func (pq *PriorityQueue) update(item *Request, value int, priority LamportClock) {
+func (pq *PriorityQueue) update(item *Request, value int,
+	priority LamportClock) {
 	item.Request = value
 	item.Clock = priority
 	heap.Fix(pq, item.Index)
