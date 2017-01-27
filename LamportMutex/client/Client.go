@@ -20,6 +20,13 @@ func printUsage() {
 	fmt.Println("For help, enter: help/h")
 }
 
+func delay() {
+	if server.Delay == 0 {
+		return
+	}
+	time.Sleep(time.Duration(server.Delay) * time.Second)
+}
+
 func handleUserInput(command string) {
 
 	// Parse a command from user
@@ -60,6 +67,9 @@ func handleUserInput(command string) {
 					printUsage()
 					break
 				}
+				log.Print("Sent BUY TICKET request to the data center.")
+				log.Print("Waiting for the datacenter's reply....")
+				delay()
 				buyTicket(int(amount))
 			default:
 				printUsage()

@@ -54,7 +54,9 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *ReplyToClient) error {
 		RequestType: ASK,
 		RequestBody: *changeRequest,
 	}
-
+	
+	log.Print("Sending ASK requests to other datacenters.")
+	
 	count := 0
 	done := make(chan bool)
 
@@ -88,9 +90,6 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *ReplyToClient) error {
 			log.Printf("Received a reply from %v with logical clock %v. My clock now: %v\n",
 				gotReply.TimeStamp.ProcId, gotReply.TimeStamp.LogicalClock, lamClock.LogicalClock)
 
-			// simulate delay of release request
-			delay()
-
 			// increase the counter if got larger time stamp
 			if gotReply.TimeStamp.largerThan(changeRequest.Clock) {
 				count++
@@ -119,6 +118,10 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *ReplyToClient) error {
 	conf.RemainingTickets -= releaseDecAmount
 	reply.Remains = conf.RemainingTickets
 	count = 0
+	
+	log.Print("Sending RELEASE requests to other datacenters.")
+	// simulate delay of release request
+	delay()
 
 	go func() {
 		for {
@@ -145,7 +148,6 @@ func (t *ClientComm) BuyTicketRequest(args *Args, reply *ReplyToClient) error {
 
 		go func() {
 			_ = <-releaseCall.Done
-			delay()
 			count++
 		}()
 	}
@@ -209,10 +211,10 @@ func (t *DataCenterComm) CriticalSectionRequest(req *DataCenterRequest,
 		req.RequestBody.Clock.LogicalClock,
 		lamClock.LogicalClock)
 
-	delay()
 	if req.RequestType == ASK {
 		log.Printf("Replied to process %v. My clock now: %v\n", req.RequestBody.Clock.ProcId, lamClock.LogicalClock)
 	}
+	delay()
 	return nil
 }
 
@@ -256,7 +258,7 @@ func EstablishConnections() {
 			}
 		}
 		if connectionCounter == conf.NumOfServers() {
-			fmt.Println("Number of clients:", conf.NumOfServers())
+			fmt.Println("All connection has been established.")
 			allConnected = true
 			break
 		}

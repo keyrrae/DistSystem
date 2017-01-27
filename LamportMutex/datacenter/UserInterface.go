@@ -10,6 +10,7 @@ import (
 )
 
 func printUsage() {
+	fmt.Println()
 	fmt.Println("pc/config - print configuration")
 	fmt.Println("pq/queue - print wait queue")
 	fmt.Println("pv/value - print amount of tickets")

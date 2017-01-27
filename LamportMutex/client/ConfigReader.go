@@ -9,6 +9,7 @@ import (
 type Server struct {
 	Address     string `json:"address"`
 	MaxAttempts int    `json:"max_attempts"`
+	Delay   int `json:"delay"`
 }
 
 func ReadConfig() Server {
