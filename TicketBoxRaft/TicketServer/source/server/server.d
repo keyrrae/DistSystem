@@ -7,7 +7,7 @@ class Server {
     Config config;
 
     this() {
-       this.config = new Config();
+       this.config = new Config("conf.json");
     }
 
     void run(){
