@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_6" default="true" project-jdk-name="DMD v2.072 SDK" project-jdk-type="DMD2 SDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>

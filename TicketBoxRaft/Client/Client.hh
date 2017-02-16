@@ -39,7 +39,7 @@ class Client {
     for (; ; ) {
       $this->waiting_for_input = true;
       $cmd = readline("> ");
-      dispatch($cmd);
+      $this->dispatch($cmd);
     }
   }
 
@@ -47,18 +47,25 @@ class Client {
     $tokens = preg_split("/\s+/", $cmd);
 
     var_dump($tokens);
-    switch ($favcolor) {
-      case "red":
-        echo "Your favorite color is red!";
+
+    switch (count($tokens)) {
+      case 0:
         break;
-      case "blue":
-        echo "Your favorite color is blue!";
+      case 1:
+        switch ($tokens[0]) {
+          case 'q':
+          case 'quit':
+          case 'e':
+          case 'exit':
+            exit(0);
+          default:
+            $this->printUsage();
+        }
         break;
-      case "green":
-        echo "Your favorite color is green!";
+      case 2:
         break;
       default:
-        echo "Your favorite color is neither red, blue, nor green!";
+        $this->printUsage();
     }
 
     if ($tokens[0] == 'q') {
