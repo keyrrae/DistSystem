@@ -26,16 +26,33 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 		2. If votedFor is null or candidateId, and candidate’s log is at
 		least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
 	*/
-	var err error
-	return err
+	if req.Term < stateParams.CurrentTerm {
+		reply.VoteGranted = false
+		// TODO: check how to reply term
+		reply.Term = stateParams.CurrentTerm
+		return nil
+	}
+
+	if stateParams.VotedFor == -1 || stateParams.VotedFor == req.CandidateId {
+		reply.VoteGranted = true
+		// TODO: check how to reply term
+		reply.Term = stateParams.CurrentTerm
+	}
+
+	return nil
 }
 
 type AppendEntriesRequest struct {
-	Term         int   // leader’s term
-	LeaderId     int   // so follower can redirect clients prevLogIndex index of log entry immediately preceding new ones
-	PrevLogTerm  int   // term of prevLogIndex entry
-	Entries      []int // log entries to store (empty for heartbeat; may send more than one for efficiency)
-	LeaderCommit int   //leader’s commitIndex
+	Term         int        // leader’s term
+	LeaderId     int        // so follower can redirect clients prevLogIndex index of log entry immediately preceding new ones
+	PrevLogTerm  int        // term of prevLogIndex entry
+	Entries      []LogEntry // log entries to store (empty for heartbeat; may send more than one for efficiency)
+	LeaderCommit int        //leader’s commitIndex
+}
+
+type LogEntry struct {
+	Num  int
+	Term int
 }
 
 type AppendEntriesReply struct {
@@ -43,8 +60,8 @@ type AppendEntriesReply struct {
 	Success bool //true if follower contained entry matching PrevLogIndex and PrevLogTerm
 }
 
-func (t *DataCenterComm) AppendEntriesHandler(req *RequestVoteRequest,
-	reply *RequestVoteReply) error {
+func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
+	reply *AppendEntriesReply) error {
 	/*
 		1. Reply false if term < currentTerm (§5.1)
 		2. Reply false if log doesn’t contain an entry at prevLogIndex
@@ -56,7 +73,20 @@ func (t *DataCenterComm) AppendEntriesHandler(req *RequestVoteRequest,
 		5. If leaderCommit > commitIndex, set commitIndex =
 			min(leaderCommit, index of last new entry)
 	*/
+	if req.Term < stateParams.CurrentTerm {
+		reply.Success = false
+	}
+	/*
+	hasEntry := false
+	for i := 0; i < len(req.Entries); i++{
+		if req.Entries[i].Term ==
+	}
+	*/
+	
+	if req.LeaderCommit > stateParams.CommitIndex {
+		stateParams.CommitIndex = min(req.LeaderCommit, req.Entries[-1])
+	}
+	
 
-	var err error
-	return err
+	return nil
 }
