@@ -19,6 +19,31 @@ type RequestVoteReply struct {
 	VoteGranted bool // true means candidate received vote
 }
 
+type ClientComm struct {
+	value int
+}
+
+type BuyTicketRequest struct {
+	NumTickets int
+}
+
+type BuyTicketReply struct{
+	Success bool
+	Remains int
+}
+
+type DataCenterComm struct {
+	value int
+}
+
+type DataCenterReply struct {
+}
+
+func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
+	return nil
+	
+}
+
 func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 	reply *RequestVoteReply) error {
 	/*
@@ -26,17 +51,17 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 		2. If votedFor is null or candidateId, and candidate’s log is at
 		least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
 	*/
-	if req.Term < stateParams.CurrentTerm {
+	if req.Term < self.StateParam.CurrentTerm {
 		reply.VoteGranted = false
 		// TODO: check how to reply term
-		reply.Term = stateParams.CurrentTerm
+		reply.Term = self.StateParam.CurrentTerm
 		return nil
 	}
 
-	if stateParams.VotedFor == -1 || stateParams.VotedFor == req.CandidateId {
+	if self.StateParam.VotedFor == -1 || self.StateParam.VotedFor == req.CandidateId {
 		reply.VoteGranted = true
 		// TODO: check how to reply term
-		reply.Term = stateParams.CurrentTerm
+		reply.Term = self.StateParam.CurrentTerm
 	}
 
 	return nil
@@ -44,7 +69,8 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 
 type AppendEntriesRequest struct {
 	Term         int        // leader’s term
-	LeaderId     int        // so follower can redirect clients prevLogIndex index of log entry immediately preceding new ones
+	LeaderId     int        // so follower can redirect clients
+                            // prevLogIndex index of log entry immediately preceding new ones
 	PrevLogTerm  int        // term of prevLogIndex entry
 	Entries      []LogEntry // log entries to store (empty for heartbeat; may send more than one for efficiency)
 	LeaderCommit int        //leader’s commitIndex
@@ -73,7 +99,7 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		5. If leaderCommit > commitIndex, set commitIndex =
 			min(leaderCommit, index of last new entry)
 	*/
-	if req.Term < stateParams.CurrentTerm {
+	if req.Term < self.StateParam.CurrentTerm {
 		reply.Success = false
 	}
 	/*
@@ -83,8 +109,8 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 	}
 	*/
 	
-	if req.LeaderCommit > stateParams.CommitIndex {
-		stateParams.CommitIndex = min(req.LeaderCommit, req.Entries[-1])
+	if req.LeaderCommit > self.StateParam.CommitIndex {
+		self.StateParam.CommitIndex = min(req.LeaderCommit, len(req.Entries) - 1)
 	}
 	
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 )
 
 func printUsage() {
@@ -51,35 +50,28 @@ func handleUserInput(command string) {
 	case "config":
 		fallthrough
 	case "pc":
-		confJson, _ := json.MarshalIndent(&conf, "", "    ")
+		confJson, _ := json.MarshalIndent(&(self.Conf), "", "    ")
 		fmt.Println(string(confJson))
 
 	case "value":
 		fallthrough
 	case "pv":
-		fmt.Println("Remaining tickets:", conf.RemainingTickets)
+		fmt.Println("Remaining tickets:", self.Conf.RemainingTickets)
 
 	case "queue":
 		fallthrough
 	case "pq":
 		// Take the items out; they arrive in decreasing priority order.
 		// TODO: find a better way to print a priority queue
-		for _, item := range waitQueue {
-			itemJson, _ := json.MarshalIndent(item, "", "    ")
-			fmt.Println(string(itemJson))
-		}
 
 	case "time":
 		fallthrough
 	case "pt":
-		clockJson, _ := json.MarshalIndent(&lamClock, "", "    ")
-		fmt.Println(string(clockJson))
 
 	case "reset":
 		fallthrough
 	case "rst":
-		lamClock.LogicalClock = 1
-		conf.RemainingTickets = conf.InitialTktNum
+		self.Conf.RemainingTickets = self.Conf.InitialTktNum
 
 	default:
 		printUsage()
@@ -88,12 +80,6 @@ func handleUserInput(command string) {
 
 
 func waitUserInput() {
-	for {
-		if allConnected {
-			break
-		}
-		time.Sleep(1000 * time.Millisecond)
-	}
 	printUsage()
 
 	for {
@@ -102,6 +88,5 @@ func waitUserInput() {
 		reader := bufio.NewReader(os.Stdin)
 		command, _ := reader.ReadString('\n')
 		handleUserInput(command)
-		time.Sleep(80 * time.Millisecond)
 	}
 }

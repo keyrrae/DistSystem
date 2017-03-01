@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 )
 
-type StateParams struct {
+type StateParameters struct {
 	CurrentTerm int `json:"self"`
 	VotedFor    int    `json:"processid"`
 	Logs        []int  `json:"logs"`
@@ -17,8 +17,8 @@ type StateParams struct {
 	MatchIndex  []int // for leader, reinitialized after election
 }
 
-func ReadSavedState() StateParams {
-	var stateParam StateParams
+func readSavedState() StateParameters {
+	var stateParam StateParameters
 	
 	file, err := ioutil.ReadFile("./saved_state.json")
 	if err != nil {
