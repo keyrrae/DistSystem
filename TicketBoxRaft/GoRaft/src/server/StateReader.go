@@ -8,13 +8,18 @@ import (
 )
 
 type StateParameters struct {
-	CurrentTerm int `json:"self"`
+	CurrentTerm int     `json:"self"`
 	VotedFor    int    `json:"processid"`
-	Logs        []int  `json:"logs"`
+	Logs        []LogEntry  `json:"logs"`
 	CommitIndex int
 	LastApplied int
 	NextIndex   []int // for leader, reinitialized after election
 	MatchIndex  []int // for leader, reinitialized after election
+}
+
+type LogEntry struct {
+	Num  int    `json:"value"`
+	Term int    `json:"term"`
 }
 
 func readSavedState() StateParameters {

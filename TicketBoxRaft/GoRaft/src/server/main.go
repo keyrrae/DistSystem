@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/rpc"
 	"time"
 )
-
 
 type Server struct {
 	Conf          Config
@@ -76,7 +76,7 @@ func followerBehavior() {
 		startElection()
 		return
 	}
-	
+
 	checkAndUpdateLogs()
 }
 
@@ -90,9 +90,72 @@ func startElection() {
 
 	// Reset election timer
 	self.ElectionTimestamp = time.Now()
-
 	// TODO: Send RequestVote RPCs to all other servers
+	fmt.Println(len(self.Conf.Peers))
+	for _, peer := range self.Conf.Peers {
+		if !peer.Connected {
+			
+			client, err := rpc.DialHTTP("tcp", peer.Address)
+			
+			if err == nil {
+				peer.Comm = client
+				peer.Connected = true
+			} else {
+				log.Printf("cannot reach peer, %s\n", peer.Address)
+				continue
+			}
+		}
+		
+		
+
+		go func(peer Peer) {
+			// Asynchronous call
+			requestVoteRequest := RequestVoteRequest{
+				Term:         self.StateParam.CurrentTerm,
+				CandidateId:  self.Conf.ProcessID,
+				LastLogIndex: self.StateParam.LastApplied,
+
+				// TODO: last candidate's log's term
+				LastLogTerm: 0,
+			}
+			
+			lenOfLogs := len(self.StateParam.Logs)
+			if lenOfLogs > 0 {
+				requestVoteRequest.LastLogTerm = self.StateParam.Logs[lenOfLogs - 1].Term
+			}
+			
+			requestVoteReply := new(RequestVoteReply)
+			
+			if peer.Comm == nil{
+				fmt.Println("client == nil")
+			}
+			
+			err := peer.Comm.Call("DataCenterComm.RequestVoteHandler", requestVoteRequest, &requestVoteReply)
+			if err != nil {
+				peer.Comm = nil
+				peer.Connected = false
+				return
+			}
+			
+			if requestVoteReply.VoteGranted {
+				self.GotNumVotes++
+			}
+		}(peer)
+	}
 	
+	if receivedMajorityVotes() {
+		// If votes received from majority of servers: become leader
+		if receivedMajorityVotes() {
+			self.State = LEADER
+			/*
+				Upon election: send initial empty AppendEntries RPCs
+				(heartbeat) to each server; repeat during idle periods to
+				prevent election timeouts (§5.2)
+			*/
+			//go sendAppendEntries()
+			//return
+		}
+	}
 }
 
 func receivedMajorityVotes() bool {
@@ -104,18 +167,6 @@ func receivedMajorityVotes() bool {
 
 func candidateBehavior() {
 
-	// If votes received from majority of servers: become leader
-	if receivedMajorityVotes() {
-		self.State = LEADER
-		/*
-		Upon election: send initial empty AppendEntries RPCs
-		(heartbeat) to each server; repeat during idle periods to
-		prevent election timeouts (§5.2)
-		*/
-		go sendAppendEntries()
-		return
-	}
-
 	// TODO: If AppendEntries RPC received from new leader: convert to follower
 	// Do this in AppendEntries RPC handler
 
@@ -126,7 +177,7 @@ func candidateBehavior() {
 }
 
 func leaderBehavior() {
-	
+
 	// TODO: If command received from client: append entry to local log,
 	// respond after entry applied to state machine (§5.3)
 	// Handled in ClientRPC handler
@@ -143,7 +194,7 @@ func leaderBehavior() {
 	// If there exists an N such that N > commitIndex, a majority
 	// of matchIndex[i] ≥ N, and log[N].term == currentTerm:
 	// set commitIndex = N (§5.3, §5.4).
-	
+
 	checkAndUpdateLogs()
 }
 
@@ -155,9 +206,9 @@ func checkAndUpdateLogs() {
 	// If commitIndex > lastApplied: increment lastApplied,
 	if self.StateParam.CommitIndex > self.StateParam.LastApplied {
 		// apply log[lastApplied] to state machine (§5.3)
-		self.Conf.RemainingTickets -= self.StateParam.Logs[self.StateParam.LastApplied]
+		self.Conf.RemainingTickets -= self.StateParam.Logs[self.StateParam.LastApplied].Num
 	}
-	
+
 	// TODO: If RPC request or response contains term T > currentTerm:
 	// set currentTerm = T, convert to follower (§5.1)
 	// Handled in AppendEntriesRPC handler
