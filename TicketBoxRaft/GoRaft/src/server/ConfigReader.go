@@ -23,6 +23,8 @@ type Config struct {
 
 type Peer struct {
 	Address   string `json:"address"`
+	NextIndex int
+	MatchedIndex int
 	Connected bool
 	Comm      *rpc.Client
 }
@@ -46,6 +48,7 @@ func ReadConfig() Config {
 
 	conf.NumMajority = len(conf.Peers)/2 + 1
 	for i, peer := range conf.Peers {
+		peer.NextIndex = 1
 		if peer.Address == conf.MyAddress {
 			conf.Peers = append(conf.Peers[:i], conf.Peers[i+1:]...)
 			break

@@ -86,6 +86,19 @@ type AppendEntriesReply struct {
 	Success bool //true if follower contained entry matching PrevLogIndex and PrevLogTerm
 }
 
+type handlers interface {
+}
+
+func (stateParams StateParameters) GetLastLogEntryTerm() int {
+	lenOfLogs := len(stateParams.Logs)
+	if lenOfLogs == 0 {
+		return 0
+	}
+	return stateParams.Logs[lenOfLogs-1].Term
+}
+
+
+
 func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 	reply *AppendEntriesReply) error {
 	/*
@@ -99,9 +112,20 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		5. If leaderCommit > commitIndex, set commitIndex =
 			min(leaderCommit, index of last new entry)
 	*/
+	
+	// TODO: For a candidate:
+	// if AppendEntries RPC received from new leader: convert to follower
+	if self.State == CANDIDATE {
+		self.ChangeState(FOLLOWER)
+	}
+	
+	if self.State == FOLLOWER {
+		self.ResetHeartbeat()
+	}
 	if req.Term < self.StateParam.CurrentTerm {
 		reply.Success = false
 	}
+	
 	/*
 	hasEntry := false
 	for i := 0; i < len(req.Entries); i++{
@@ -113,6 +137,5 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		self.StateParam.CommitIndex = min(req.LeaderCommit, len(req.Entries) - 1)
 	}
 	
-
 	return nil
 }

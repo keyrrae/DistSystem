@@ -14,9 +14,16 @@ type Server struct {
 	LastHeartbeat time.Time
 
 	StateParam StateParameters
-
-	ElectionTimestamp time.Time
 	GotNumVotes       int
+}
+
+func (server *Server) ChangeState(state ServerState){
+	server.State = state
+	server.LastHeartbeat = time.Now()
+}
+
+func (server *Server) ResetHeartbeat(){
+	server.LastHeartbeat = time.Now()
 }
 
 var self Server
@@ -57,13 +64,14 @@ func main() {
 
 func runStateMachine() {
 	for {
-		fmt.Println(self.State)
+		log.Println(self.State)
 		switch self.State {
 		case FOLLOWER:
 			followerBehavior()
 		case CANDIDATE:
 			candidateBehavior()
 		case LEADER:
+			leaderBehavior()
 		}
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -72,7 +80,8 @@ func runStateMachine() {
 func followerBehavior() {
 	if time.Since(self.LastHeartbeat) > self.Conf.Timeout {
 		// Follower timeout, convert to candidate
-		self.State = CANDIDATE
+		self.ChangeState(CANDIDATE)
+		log.Println(self.State)
 		startElection()
 		return
 	}
@@ -87,25 +96,17 @@ func startElection() {
 	// Vote for self
 	self.StateParam.VotedFor = self.Conf.ProcessID
 	self.GotNumVotes = 1
-
-	// Reset election timer
-	self.ElectionTimestamp = time.Now()
+	
 	// TODO: Send RequestVote RPCs to all other servers
 	fmt.Println(len(self.Conf.Peers))
+
+	done := make(chan bool)
+
 	for _, peer := range self.Conf.Peers {
-		if !peer.Connected {
-			
-			client, err := rpc.DialHTTP("tcp", peer.Address)
-			
-			if err == nil {
-				peer.Comm = client
-				peer.Connected = true
-			} else {
-				log.Printf("cannot reach peer, %s\n", peer.Address)
-				continue
-			}
+		if !tryEstablishConnection(&peer) {
+			continue
 		}
-		
+
 		go func(peer Peer) {
 			// Asynchronous call
 			requestVoteRequest := RequestVoteRequest{
@@ -116,50 +117,58 @@ func startElection() {
 				// TODO: last candidate's log's term
 				LastLogTerm: 0,
 			}
-			
+
 			lenOfLogs := len(self.StateParam.Logs)
 			if lenOfLogs > 0 {
-				requestVoteRequest.LastLogTerm = self.StateParam.Logs[lenOfLogs - 1].Term
+				requestVoteRequest.LastLogTerm = self.StateParam.Logs[lenOfLogs-1].Term
 			}
-			
+
 			requestVoteReply := new(RequestVoteReply)
-			
-			if peer.Comm == nil{
+
+			if peer.Comm == nil {
 				fmt.Println("client == nil")
 			}
-			
+
 			err := peer.Comm.Call("DataCenterComm.RequestVoteHandler", requestVoteRequest, &requestVoteReply)
 			if err != nil {
 				peer.Comm = nil
 				peer.Connected = false
 				return
 			}
-			
+
 			if requestVoteReply.VoteGranted {
 				self.GotNumVotes++
 				log.Printf("GotNumVotes: %v", self.GotNumVotes)
 			}
+
+			if receivedMajorityVotes() {
+				done <- true
+			}
 		}(peer)
 	}
-	
+
 	go func() {
-		for {
-			if receivedMajorityVotes() {
-				// If votes received from majority of servers: become leader
-				self.State = LEADER
-				break
-				/*
-					Upon election: send initial empty AppendEntries RPCs
-					(heartbeat) to each server; repeat during idle periods to
-					prevent election timeouts (§5.2)
-				*/
-				//go sendAppendEntries()
-				//return
-				
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
+		<-done
+		self.State = LEADER
+		self.LastHeartbeat = time.Now()
 	}()
+}
+
+func tryEstablishConnection(peer *Peer) bool {
+	if !peer.Connected {
+
+		client, err := rpc.DialHTTP("tcp", peer.Address)
+
+		if err == nil {
+			peer.Comm = client
+			peer.Connected = true
+			return true
+		} else {
+			log.Printf("cannot reach peer, %s\n", peer.Address)
+			return false
+		}
+	}
+	return true
 }
 
 func receivedMajorityVotes() bool {
@@ -171,11 +180,11 @@ func receivedMajorityVotes() bool {
 
 func candidateBehavior() {
 
-	// TODO: If AppendEntries RPC received from new leader: convert to follower
-	// Do this in AppendEntries RPC handler
+	// If AppendEntries RPC received from new leader: convert to follower
+	// This is handled in AppendEntries RPC handler
 
 	// If election timeout elapses: start new election
-	if time.Since(self.ElectionTimestamp) > self.Conf.Timeout {
+	if time.Since(self.LastHeartbeat) > self.Conf.Timeout {
 		startElection()
 	}
 }
@@ -185,6 +194,8 @@ func leaderBehavior() {
 	// TODO: If command received from client: append entry to local log,
 	// respond after entry applied to state machine (§5.3)
 	// Handled in ClientRPC handler
+
+	sendAppendEntriesToAll()
 
 	// If last log index ≥ nextIndex for a follower: send
 	// AppendEntries RPC with log entries starting at nextIndex
@@ -202,8 +213,36 @@ func leaderBehavior() {
 	checkAndUpdateLogs()
 }
 
-func sendAppendEntries() {
+func sendAppendEntriesToAll() {
 
+	for _, peer := range self.Conf.Peers {
+		if !tryEstablishConnection(&peer) {
+			continue
+		}
+
+		// Send an append entry rpc to peer
+		go sendAppendEntriesToPeer(peer)
+	}
+}
+
+func sendAppendEntriesToPeer(peer Peer) {
+	// Asynchronous call
+	appendEntriesRequest := AppendEntriesRequest{
+		Term: self.StateParam.CurrentTerm,
+		LeaderId: self.Conf.ProcessID,
+		PrevLogTerm: self.StateParam.GetLastLogEntryTerm(),
+	}
+	
+	// TODO: update appendEntriesRequest.Entries according to peer condition
+
+	appendEntriesReply := new(AppendEntriesReply)
+
+	err := peer.Comm.Call("DataCenterComm.AppendEntriesHandler", appendEntriesRequest, &appendEntriesReply)
+	if err != nil {
+		peer.Comm = nil
+		peer.Connected = false
+		return
+	}
 }
 
 func checkAndUpdateLogs() {
