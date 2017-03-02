@@ -12,18 +12,25 @@ type Server struct {
 	Conf          Config
 	State         ServerState
 	LastHeartbeat time.Time
-
+	LeaderID        int
 	StateParam StateParameters
 	GotNumVotes       int
 }
 
-func (server *Server) ChangeState(state ServerState){
+func (server *Server) ChangeState(state ServerState) {
 	server.State = state
-	server.LastHeartbeat = time.Now()
+	server.ResetHeartbeat()
+	if state == LEADER {
+		self.LeaderID == self.Conf.ProcessID
+	}
 }
 
 func (server *Server) ResetHeartbeat(){
 	server.LastHeartbeat = time.Now()
+}
+
+func (server *Server) SetLeaderID(leaderId int) {
+	server.LeaderID = leaderId
 }
 
 var self Server
@@ -149,8 +156,7 @@ func startElection() {
 
 	go func() {
 		<-done
-		self.State = LEADER
-		self.LastHeartbeat = time.Now()
+		self.ChangeState(LEADER)
 	}()
 }
 

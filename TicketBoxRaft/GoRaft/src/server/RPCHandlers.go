@@ -40,8 +40,9 @@ type DataCenterReply struct {
 }
 
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
-	return nil
 	
+	
+	return nil
 }
 
 func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
@@ -121,6 +122,7 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 	
 	if self.State == FOLLOWER {
 		self.ResetHeartbeat()
+		self.SetLeaderID(req.LeaderId)
 	}
 	if req.Term < self.StateParam.CurrentTerm {
 		reply.Success = false
