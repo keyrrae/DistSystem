@@ -106,8 +106,6 @@ func startElection() {
 			}
 		}
 		
-		
-
 		go func(peer Peer) {
 			// Asynchronous call
 			requestVoteRequest := RequestVoteRequest{
@@ -139,23 +137,29 @@ func startElection() {
 			
 			if requestVoteReply.VoteGranted {
 				self.GotNumVotes++
+				log.Printf("GotNumVotes: %v", self.GotNumVotes)
 			}
 		}(peer)
 	}
 	
-	if receivedMajorityVotes() {
-		// If votes received from majority of servers: become leader
-		if receivedMajorityVotes() {
-			self.State = LEADER
-			/*
-				Upon election: send initial empty AppendEntries RPCs
-				(heartbeat) to each server; repeat during idle periods to
-				prevent election timeouts (§5.2)
-			*/
-			//go sendAppendEntries()
-			//return
+	go func() {
+		for {
+			if receivedMajorityVotes() {
+				// If votes received from majority of servers: become leader
+				self.State = LEADER
+				break
+				/*
+					Upon election: send initial empty AppendEntries RPCs
+					(heartbeat) to each server; repeat during idle periods to
+					prevent election timeouts (§5.2)
+				*/
+				//go sendAppendEntries()
+				//return
+				
+			}
+			time.Sleep(100 * time.Millisecond)
 		}
-	}
+	}()
 }
 
 func receivedMajorityVotes() bool {
