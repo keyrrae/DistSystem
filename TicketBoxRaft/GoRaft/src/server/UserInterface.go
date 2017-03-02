@@ -78,7 +78,6 @@ func handleUserInput(command string) {
 	}
 }
 
-
 func waitUserInput() {
 	printUsage()
 
