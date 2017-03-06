@@ -44,7 +44,7 @@ type DataCenterReply struct {
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
 	log.Println("received buy ticket from a client")
 	
-	if self.StateParam.VotedFor != self.Conf.ProcessID {
+	if self.StateParam.Leader.ProcessId != self.Conf.ProcessID {
 		leader := self.StateParam.Leader
 		leaderReply := new(BuyTicketReply)
 		err := leader.Comm.Call("DataCenterComm.BuyTicketHandler", req, &leaderReply)
@@ -131,7 +131,8 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 type AppendEntriesRequest struct {
 	Term         int        // leader’s term
 	LeaderId     int        // so follower can redirect clients
-                            // prevLogIndex index of log entry immediately preceding new ones
+	PrevLogIndex int    // prevLogIndex index of log entry immediately preceding new ones
+	
 	PrevLogTerm  int        // term of prevLogIndex entry
 	Entries      []LogEntry // log entries to store
                             // (empty for heartbeat; may send more than one for efficiency)
@@ -172,22 +173,41 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 	// if AppendEntries RPC received from new leader: convert to follower
 	if self.State == CANDIDATE {
 		self.ChangeState(FOLLOWER)
+		self.ResetHeartbeat()
+		self.SetLeaderID(req.LeaderId)
 	}
 	
 	if self.State == FOLLOWER {
 		self.ResetHeartbeat()
 		self.SetLeaderID(req.LeaderId)
 	}
-	if req.Term < self.StateParam.CurrentTerm {
-		reply.Success = false
+	
+	if self.State == LEADER {
+		if req.Term > self.StateParam.CurrentTerm {
+			self.ChangeState(FOLLOWER)
+			self.ResetHeartbeat()
+			self.SetLeaderID(req.LeaderId)
+		}
 	}
 	
-	/*
-	hasEntry := false
-	for i := 0; i < len(req.Entries); i++{
-		if req.Entries[i].Term ==
+	if req.Term < self.StateParam.CurrentTerm {
+		reply.Success = false
+		reply.Term = self.StateParam.CurrentTerm
+		return nil
 	}
-	*/
+	
+	// If an existing entry conflicts with a new one (same index
+	// but different terms), delete the existing entry and all that
+	// follow it (§5.3)
+	
+	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex + 1 + len(req.Entries); i++ {
+		if len(self.StateParam.Logs) - 1 < i {
+			
+		}
+		
+		
+		//if req.Entries[i].Term ==
+	}
 	
 	if req.LeaderCommit > self.StateParam.CommitIndex {
 		self.StateParam.CommitIndex = min(req.LeaderCommit, len(req.Entries) - 1)

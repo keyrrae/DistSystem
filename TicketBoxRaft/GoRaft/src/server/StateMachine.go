@@ -109,7 +109,7 @@ func tryEstablishConnection(peer *Peer) bool {
 			peer.Connected = true
 			return true
 		} else {
-			log.Printf("cannot reach peer, %s\n", peer.Address)
+			log.Printf("Cannot reach peer, %s\n", peer.Address)
 			return false
 		}
 	}
@@ -166,27 +166,50 @@ func sendAppendEntriesToAll() {
 		}
 		
 		// Send an append entry rpc to peer
-		go sendAppendEntriesToPeer(peer)
+		go sendAppendEntriesToPeer(&peer)
 	}
 }
 
-func sendAppendEntriesToPeer(peer Peer) {
+func sendAppendEntriesToPeer(peer *Peer) {
 	// Asynchronous call
 	appendEntriesRequest := AppendEntriesRequest{
 		Term: self.StateParam.CurrentTerm,
 		LeaderId: self.Conf.ProcessID,
-		PrevLogTerm: self.StateParam.GetLastLogEntryTerm(),
+		PrevLogIndex: peer.MatchedIndex,
+		PrevLogTerm: self.StateParam.Logs[peer.MatchedIndex].Term,
+		LeaderCommit: self.StateParam.CommitIndex,
 	}
 	
 	// TODO: update appendEntriesRequest.Entries according to peer condition
+	
+	leaderLastCommitIndex := self.StateParam.CommitIndex
+	
+	for i := peer.NextIndex; i < leaderLastCommitIndex; i++ {
+		appendEntriesRequest.Entries = append(appendEntriesRequest.Entries,
+				self.StateParam.Logs[i])
+	}
 	
 	appendEntriesReply := new(AppendEntriesReply)
 	
 	err := peer.Comm.Call("DataCenterComm.AppendEntriesHandler", appendEntriesRequest, &appendEntriesReply)
 	if err != nil {
+		log.Printf("Cannot reach peer, %s\n", peer.Address)
 		peer.Comm = nil
 		peer.Connected = false
 		return
+	}
+	
+	if appendEntriesReply.Success {
+		peer.MatchedIndex = leaderLastCommitIndex
+		peer.NextIndex = peer.MatchedIndex + 1
+	} else {
+		if appendEntriesReply.Term > self.StateParam.CurrentTerm {
+			self.StateParam.CurrentTerm = appendEntriesReply.Term
+			self.State = FOLLOWER
+		} else {
+			
+			
+		}
 	}
 }
 
