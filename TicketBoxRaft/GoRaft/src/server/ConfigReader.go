@@ -12,7 +12,7 @@ import (
 type Config struct {
 	MyAddress        string        `json:"self"`
 	ProcessID        int           `json:"processid"`
-	Peers            []Peer        `json:"servers"`
+	Peers            []*Peer        `json:"servers"`
 	RemainingTickets int           `json:"tickets"`
 	Timeout          time.Duration `json:"election_timeout"`
 	MaxAttempts      int           `json:"max_attempts"`
@@ -59,8 +59,10 @@ func ReadConfig() Config {
 	self.Conf.PeersMap = make(map[int]*Peer)
 
 	for _, peer := range conf.Peers {
-		peer.NextIndex = 1
-		self.Conf.PeersMap[peer.ProcessId] = &peer
+		peer.MatchedIndex = -1
+		fmt.Println(peer.MatchedIndex)
+		peer.NextIndex = 0
+		self.Conf.PeersMap[peer.ProcessId] = peer
 	}
 
 	conf.Timeout = conf.Timeout * time.Second

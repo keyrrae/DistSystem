@@ -1,6 +1,9 @@
 package main
 
-import "log"
+import (
+	"log"
+	_ "fmt"
+)
 
 /*
 type handlers interface {
@@ -200,17 +203,34 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 	// but different terms), delete the existing entry and all that
 	// follow it (§5.3)
 	
-	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex + 1 + len(req.Entries); i++ {
-		if len(self.StateParam.Logs) - 1 < i {
-			
-		}
-		
-		
-		//if req.Entries[i].Term ==
+	if req.PrevLogIndex < 0 {
+		reply.Success = true
+	} else if req.PrevLogIndex > len(self.StateParam.Logs) - 1 {
+		reply.Success = false
+	} else {
+		reply.Success = (self.StateParam.Logs[req.PrevLogIndex].Term == req.PrevLogTerm)
 	}
 	
+	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex + 1 + len(req.Entries); i++ {
+		logIndex := i - req.PrevLogIndex - 1
+		if len(self.StateParam.Logs) - 1 < i {
+			// Append any new entries not already in the log
+			self.StateParam.Logs = append(self.StateParam.Logs, req.Entries[logIndex])
+		} else {
+			// If an existing entry conflicts with a new one (same index
+			// but different terms), delete the existing entry and all that
+			// follow it (§5.3)
+			if self.StateParam.Logs[i].Term != req.Entries[logIndex].Term {
+				self.StateParam.Logs = self.StateParam.Logs[:i]
+			}
+		}
+	}
+	
+	// If leaderCommit > commitIndex,
+	// set commitIndex = min(leaderCommit, index of last new entry)
+	
 	if req.LeaderCommit > self.StateParam.CommitIndex {
-		self.StateParam.CommitIndex = min(req.LeaderCommit, len(req.Entries) - 1)
+		self.StateParam.CommitIndex = min(req.LeaderCommit, len(self.StateParam.Logs) - 1)
 	}
 	
 	return nil
