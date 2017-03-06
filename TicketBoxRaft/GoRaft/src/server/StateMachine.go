@@ -41,6 +41,7 @@ func startElection() {
 	// Vote for self
 	self.StateParam.VotedFor = self.Conf.ProcessID
 	self.GotNumVotes = 1
+	self.StateParam.Leader = nil
 	
 	// TODO: Send RequestVote RPCs to all other servers
 	fmt.Println(len(self.Conf.Peers))
@@ -116,7 +117,7 @@ func tryEstablishConnection(peer *Peer) bool {
 }
 
 func receivedMajorityVotes() bool {
-	if self.GotNumVotes > self.Conf.NumMajority {
+	if self.GotNumVotes >= self.Conf.NumMajority {
 		return true
 	}
 	return false

@@ -1,5 +1,7 @@
 package main
 
+import "log"
+
 /*
 type handlers interface {
 	RequestVoteHandler(req *DataCenterRequest,
@@ -40,7 +42,59 @@ type DataCenterReply struct {
 }
 
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
+	log.Println("received buy ticket from a client")
 	
+	if self.StateParam.VotedFor != self.Conf.ProcessID {
+		leader := self.StateParam.Leader
+		leaderReply := new(BuyTicketReply)
+		err := leader.Comm.Call("DataCenterComm.BuyTicketHandler", req, &leaderReply)
+		if err != nil {
+			leader.Comm = nil
+			leader.Connected = false
+			reply.Success = false
+			reply.Remains = self.Conf.RemainingTickets
+			return err
+		}
+		
+		reply.Remains = leaderReply.Remains
+		reply.Success = leaderReply.Success
+	} else {
+		log := LogEntry{
+			Num: req.NumTickets,
+			Term: self.StateParam.CurrentTerm,
+		}
+		
+		self.StateParam.Logs = append(self.StateParam.Logs, log)
+		// TODO: append entries to peers
+		
+		reply.Success = true
+		self.Conf.RemainingTickets -= req.NumTickets
+		reply.Remains = self.Conf.RemainingTickets
+	}
+	
+	return nil
+}
+
+
+func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
+	log.Println("received buy ticket from a follower redirection")
+	
+	if self.StateParam.Leader.ProcessId == self.Conf.ProcessID {
+		// I'm the leader
+		log := LogEntry{
+			Num: req.NumTickets,
+			Term: self.StateParam.CurrentTerm,
+		}
+		self.StateParam.Logs = append(self.StateParam.Logs, log)
+		// TODO: append entries to peers
+		
+		reply.Success = true
+		self.Conf.RemainingTickets -= req.NumTickets
+		reply.Remains = self.Conf.RemainingTickets
+	} else {
+		reply.Success = false
+		reply.Remains = self.Conf.RemainingTickets
+	}
 	
 	return nil
 }
@@ -67,6 +121,8 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 		reply.VoteGranted = true
 		// TODO: check how to reply term
 		reply.Term = self.StateParam.CurrentTerm
+		self.StateParam.VotedFor = req.CandidateId
+		self.StateParam.Leader = self.Conf.PeersMap[self.StateParam.VotedFor]
 	}
 
 	return nil
@@ -97,8 +153,6 @@ func (stateParams StateParameters) GetLastLogEntryTerm() int {
 	}
 	return stateParams.Logs[lenOfLogs-1].Term
 }
-
-
 
 func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 	reply *AppendEntriesReply) error {

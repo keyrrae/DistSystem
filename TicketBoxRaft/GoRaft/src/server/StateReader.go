@@ -13,6 +13,7 @@ type StateParameters struct {
 	Logs        []LogEntry `json:"logs"`
 	CommitIndex int
 	LastApplied int
+	Leader      *Peer
 }
 
 type LogEntry struct {

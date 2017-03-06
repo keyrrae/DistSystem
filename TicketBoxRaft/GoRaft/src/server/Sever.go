@@ -15,7 +15,7 @@ func (server *Server) ChangeState(state ServerState) {
 	server.State = state
 	server.ResetHeartbeat()
 	if state == LEADER {
-		self.LeaderID == self.Conf.ProcessID
+		self.LeaderID = self.Conf.ProcessID
 	}
 }
 

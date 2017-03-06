@@ -20,12 +20,6 @@ func printUsage() {
 	fmt.Println("For help, enter: help/h")
 }
 
-func delay() {
-	if server.Delay == 0 {
-		return
-	}
-	time.Sleep(time.Duration(server.Delay) * time.Second)
-}
 
 func handleUserInput(command string) {
 
@@ -69,7 +63,6 @@ func handleUserInput(command string) {
 				}
 				log.Print("Sent BUY TICKET request to the data center.")
 				log.Print("Waiting for the datacenter's reply....")
-				delay()
 				buyTicket(int(amount))
 			default:
 				printUsage()
@@ -80,16 +73,16 @@ func handleUserInput(command string) {
 	}
 }
 
-type ReplyToClient struct{
+type BuyTicketReply struct{
 	Success bool
 	Remains int
 }
 
 func buyTicket(amount int) {
 	// Synchronous call
-	args := Args{amount}
-	reply := new(ReplyToClient)
-	err := rpcClient.Call("ClientComm.BuyTicketRequest", args, &reply)
+	args := BuyTicketRequest{NumTickets: amount}
+	reply := new(BuyTicketReply)
+	err := rpcClient.Call("ClientComm.BuyTicketHandler", args, &reply)
 	if err != nil {
 		log.Fatal("Error:ddd", err)
 	}
@@ -111,12 +104,11 @@ func waitUserInput() {
 		fmt.Print("> ")
 		command, _ := reader.ReadString('\n')
 		handleUserInput(command)
-		time.Sleep(80 * time.Millisecond)
 	}
 }
 
-type Args struct {
-	BuyTickets int
+type BuyTicketRequest struct {
+	NumTickets int
 }
 
 var rpcClient *rpc.Client
