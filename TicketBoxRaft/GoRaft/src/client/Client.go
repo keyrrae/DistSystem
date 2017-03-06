@@ -20,7 +20,6 @@ func printUsage() {
 	fmt.Println("For help, enter: help/h")
 }
 
-
 func handleUserInput(command string) {
 
 	// Parse a command from user
@@ -73,7 +72,7 @@ func handleUserInput(command string) {
 	}
 }
 
-type BuyTicketReply struct{
+type BuyTicketReply struct {
 	Success bool
 	Remains int
 }

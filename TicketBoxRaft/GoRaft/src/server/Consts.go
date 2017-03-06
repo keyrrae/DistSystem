@@ -2,8 +2,8 @@ package main
 
 type ServerState string
 
-const  (
-	FOLLOWER = "FOLLOWER"
+const (
+	FOLLOWER  = "FOLLOWER"
 	CANDIDATE = "CANDIDATE"
-	LEADER = "LEADER"
+	LEADER    = "LEADER"
 )

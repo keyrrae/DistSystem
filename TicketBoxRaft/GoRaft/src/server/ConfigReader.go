@@ -12,7 +12,7 @@ import (
 type Config struct {
 	MyAddress        string        `json:"self"`
 	ProcessID        int           `json:"processid"`
-	Peers            []*Peer        `json:"servers"`
+	Peers            []*Peer       `json:"servers"`
 	RemainingTickets int           `json:"tickets"`
 	Timeout          time.Duration `json:"election_timeout"`
 	MaxAttempts      int           `json:"max_attempts"`

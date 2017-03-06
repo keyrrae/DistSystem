@@ -1,8 +1,8 @@
 package main
 
 import (
-	"log"
 	_ "fmt"
+	"log"
 )
 
 /*
@@ -32,7 +32,7 @@ type BuyTicketRequest struct {
 	NumTickets int
 }
 
-type BuyTicketReply struct{
+type BuyTicketReply struct {
 	Success bool
 	Remains int
 }
@@ -46,9 +46,9 @@ type DataCenterReply struct {
 
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
 	log.Println("received buy ticket from a client")
-	
-	if self.StateParam.Leader.ProcessId != self.Conf.ProcessID {
-		leader := self.StateParam.Leader
+
+	if self.LeaderID != self.Conf.ProcessID {
+		leader := self.Conf.PeersMap[self.LeaderID]
 		leaderReply := new(BuyTicketReply)
 		err := leader.Comm.Call("DataCenterComm.BuyTicketHandler", req, &leaderReply)
 		if err != nil {
@@ -58,39 +58,38 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 			reply.Remains = self.Conf.RemainingTickets
 			return err
 		}
-		
+
 		reply.Remains = leaderReply.Remains
 		reply.Success = leaderReply.Success
 	} else {
 		log := LogEntry{
-			Num: req.NumTickets,
+			Num:  req.NumTickets,
 			Term: self.StateParam.CurrentTerm,
 		}
-		
+
 		self.StateParam.Logs = append(self.StateParam.Logs, log)
 		// TODO: append entries to peers
-		
+
 		reply.Success = true
 		self.Conf.RemainingTickets -= req.NumTickets
 		reply.Remains = self.Conf.RemainingTickets
 	}
-	
+
 	return nil
 }
 
-
 func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
 	log.Println("received buy ticket from a follower redirection")
-	
-	if self.StateParam.Leader.ProcessId == self.Conf.ProcessID {
+
+	if self.LeaderID == self.Conf.ProcessID {
 		// I'm the leader
 		log := LogEntry{
-			Num: req.NumTickets,
+			Num:  req.NumTickets,
 			Term: self.StateParam.CurrentTerm,
 		}
 		self.StateParam.Logs = append(self.StateParam.Logs, log)
 		// TODO: append entries to peers
-		
+
 		reply.Success = true
 		self.Conf.RemainingTickets -= req.NumTickets
 		reply.Remains = self.Conf.RemainingTickets
@@ -98,7 +97,7 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 		reply.Success = false
 		reply.Remains = self.Conf.RemainingTickets
 	}
-	
+
 	return nil
 }
 
@@ -115,31 +114,30 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 		reply.Term = self.StateParam.CurrentTerm
 		return nil
 	}
-	
-	correctID := ( self.StateParam.VotedFor == -1 ||
-		self.StateParam.VotedFor == req.CandidateId )
-	
+
+	correctID := (self.StateParam.VotedFor == -1 ||
+		self.StateParam.VotedFor == req.CandidateId)
+
 	satisfactoryTerm := (req.Term >= self.StateParam.CurrentTerm)
 	if correctID && satisfactoryTerm {
 		reply.VoteGranted = true
 		// TODO: check how to reply term
 		reply.Term = self.StateParam.CurrentTerm
 		self.StateParam.VotedFor = req.CandidateId
-		self.StateParam.Leader = self.Conf.PeersMap[self.StateParam.VotedFor]
 	}
 
 	return nil
 }
 
 type AppendEntriesRequest struct {
-	Term         int        // leader’s term
-	LeaderId     int        // so follower can redirect clients
-	PrevLogIndex int    // prevLogIndex index of log entry immediately preceding new ones
-	
-	PrevLogTerm  int        // term of prevLogIndex entry
-	Entries      []LogEntry // log entries to store
-                            // (empty for heartbeat; may send more than one for efficiency)
-	LeaderCommit int        //leader’s commitIndex
+	Term         int // leader’s term
+	LeaderId     int // so follower can redirect clients
+	PrevLogIndex int // prevLogIndex index of log entry immediately preceding new ones
+
+	PrevLogTerm int        // term of prevLogIndex entry
+	Entries     []LogEntry // log entries to store
+	// (empty for heartbeat; may send more than one for efficiency)
+	LeaderCommit int //leader’s commitIndex
 }
 
 type AppendEntriesReply struct {
@@ -171,7 +169,7 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		5. If leaderCommit > commitIndex, set commitIndex =
 			min(leaderCommit, index of last new entry)
 	*/
-	
+
 	// TODO: For a candidate:
 	// if AppendEntries RPC received from new leader: convert to follower
 	if self.State == CANDIDATE {
@@ -179,12 +177,12 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		self.ResetHeartbeat()
 		self.SetLeaderID(req.LeaderId)
 	}
-	
+
 	if self.State == FOLLOWER {
 		self.ResetHeartbeat()
 		self.SetLeaderID(req.LeaderId)
 	}
-	
+
 	if self.State == LEADER {
 		if req.Term > self.StateParam.CurrentTerm {
 			self.ChangeState(FOLLOWER)
@@ -192,28 +190,28 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 			self.SetLeaderID(req.LeaderId)
 		}
 	}
-	
+
 	if req.Term < self.StateParam.CurrentTerm {
 		reply.Success = false
 		reply.Term = self.StateParam.CurrentTerm
 		return nil
 	}
-	
+
 	// If an existing entry conflicts with a new one (same index
 	// but different terms), delete the existing entry and all that
 	// follow it (§5.3)
-	
+
 	if req.PrevLogIndex < 0 {
 		reply.Success = true
-	} else if req.PrevLogIndex > len(self.StateParam.Logs) - 1 {
+	} else if req.PrevLogIndex > len(self.StateParam.Logs)-1 {
 		reply.Success = false
 	} else {
 		reply.Success = (self.StateParam.Logs[req.PrevLogIndex].Term == req.PrevLogTerm)
 	}
-	
-	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex + 1 + len(req.Entries); i++ {
+
+	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex+1+len(req.Entries); i++ {
 		logIndex := i - req.PrevLogIndex - 1
-		if len(self.StateParam.Logs) - 1 < i {
+		if len(self.StateParam.Logs)-1 < i {
 			// Append any new entries not already in the log
 			self.StateParam.Logs = append(self.StateParam.Logs, req.Entries[logIndex])
 		} else {
@@ -225,13 +223,13 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 			}
 		}
 	}
-	
+
 	// If leaderCommit > commitIndex,
 	// set commitIndex = min(leaderCommit, index of last new entry)
-	
+
 	if req.LeaderCommit > self.StateParam.CommitIndex {
-		self.StateParam.CommitIndex = min(req.LeaderCommit, len(self.StateParam.Logs) - 1)
+		self.StateParam.CommitIndex = min(req.LeaderCommit, len(self.StateParam.Logs)-1)
 	}
-	
+
 	return nil
 }

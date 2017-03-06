@@ -6,9 +6,9 @@ type Server struct {
 	Conf          Config
 	State         ServerState
 	LastHeartbeat time.Time
-	LeaderID        int
-	StateParam StateParameters
-	GotNumVotes       int
+	LeaderID      int
+	StateParam    StateParameters
+	GotNumVotes   int
 }
 
 func (server *Server) ChangeState(state ServerState) {
@@ -19,7 +19,7 @@ func (server *Server) ChangeState(state ServerState) {
 	}
 }
 
-func (server *Server) ResetHeartbeat(){
+func (server *Server) ResetHeartbeat() {
 	server.LastHeartbeat = time.Now()
 }
 
