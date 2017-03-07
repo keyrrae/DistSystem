@@ -69,9 +69,10 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 
 		self.StateParam.Logs = append(self.StateParam.Logs, log)
 		// TODO: append entries to peers
+		leaderBehavior()
 
 		reply.Success = true
-		self.Conf.RemainingTickets -= req.NumTickets
+		//self.Conf.RemainingTickets -= req.NumTickets
 		reply.Remains = self.Conf.RemainingTickets
 	}
 
@@ -89,9 +90,11 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 		}
 		self.StateParam.Logs = append(self.StateParam.Logs, log)
 		// TODO: append entries to peers
-
+		
+		leaderBehavior()
+		
 		reply.Success = true
-		self.Conf.RemainingTickets -= req.NumTickets
+		//self.Conf.RemainingTickets -= req.NumTickets
 		reply.Remains = self.Conf.RemainingTickets
 	} else {
 		reply.Success = false

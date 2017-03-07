@@ -28,6 +28,7 @@ func readSavedState() StateParameters {
 		stateParam.CurrentTerm = 0
 		stateParam.VotedFor = -1
 		stateParam.CommitIndex = -1
+		stateParam.LastApplied = -1
 		fmt.Println(stateParam)
 		return stateParam
 	}

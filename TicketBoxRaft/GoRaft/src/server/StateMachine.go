@@ -32,6 +32,8 @@ func followerBehavior() {
 	}
 
 	checkAndUpdateLogs()
+	log.Println(self.StateParam.CommitIndex)
+	log.Println(self.Conf.RemainingTickets)
 }
 
 func startElection() {
@@ -167,17 +169,20 @@ func updateCommitIndex() {
 			matchIndexMap[matchIndex] = 1
 		}
 	}
-
+	fmt.Println("matchIndexMap", matchIndexMap)
+	fmt.Println("commit index", self.StateParam.CommitIndex)
+	
 	for k, v := range matchIndexMap {
-		fmt.Println(matchIndexMap)
 		if v >= self.Conf.NumMajority {
-			for i := self.StateParam.CommitIndex; i <= k; i++ {
+			for i := self.StateParam.CommitIndex + 1; i <= k; i++ {
 				if self.StateParam.Logs[i].Term == self.StateParam.CurrentTerm {
 					self.StateParam.CommitIndex = k
 				}
 			}
 		}
 	}
+	
+	fmt.Println("commit index", self.StateParam.CommitIndex)
 }
 
 func sendAppendEntriesToAll() {
@@ -213,7 +218,7 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 
 	// TODO: update appendEntriesRequest.Entries according to peer condition
 
-	leaderLastCommitIndex := self.StateParam.CommitIndex
+	//leaderLastCommitIndex := self.StateParam.CommitIndex
 	fmt.Println(appendEntriesRequest)
 	
 	if len(self.StateParam.Logs) > 0 {
@@ -248,7 +253,7 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 	fmt.Println(*appendEntriesReply)
 	if appendEntriesReply.Success {
 		// If successful: update nextIndex and matchIndex for follower (§5.3)
-		peer.MatchedIndex = leaderLastCommitIndex
+		peer.MatchedIndex = len(self.StateParam.Logs) - 1
 		peer.NextIndex = peer.MatchedIndex + 1
 	} else {
 		if appendEntriesReply.Term > self.StateParam.CurrentTerm {
@@ -274,8 +279,13 @@ func checkAndUpdateLogs() {
 	// If commitIndex > lastApplied: increment lastApplied,
 	if self.StateParam.CommitIndex > self.StateParam.LastApplied {
 		// apply log[lastApplied] to state machine (§5.3)
+		
+		for i:= self.StateParam.LastApplied + 1; i < len(self.StateParam.Logs); i++ {
+			self.Conf.RemainingTickets -=
+				self.StateParam.Logs[i].Num
+		}
+		
 		self.StateParam.LastApplied = self.StateParam.CommitIndex
-		self.Conf.RemainingTickets -= self.StateParam.Logs[self.StateParam.LastApplied].Num
 	}
 	fmt.Println(self.StateParam.Logs)
 }
