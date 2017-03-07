@@ -37,7 +37,9 @@ func readSavedState() StateParameters {
 	if err != nil {
 		log.Fatal(err, "\r\n")
 	}
-
+	
+	stateParam.LastApplied = -1
+	
 	fmt.Println(stateParam)
 	return stateParam
 }

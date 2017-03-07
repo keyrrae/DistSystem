@@ -101,6 +101,21 @@ func startElection() {
 	go func() {
 		<-done
 		self.ChangeState(LEADER)
+		
+		/*
+		nextIndex[]
+		
+		for each server, index of the next log entry
+		to send to that server (initialized to leader
+		last log index + 1)
+		
+		matchIndex[]
+		
+		for each server, index of highest log entry
+		known to be replicated on server
+		(initialized to 0, increases monotonically)
+		*/
+		self.ResetPeers()
 	}()
 }
 
@@ -245,7 +260,8 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 
 	fmt.Println(appendEntriesRequest)
 
-	err := peer.Comm.Call("DataCenterComm.AppendEntriesHandler", appendEntriesRequest, &appendEntriesReply)
+	err := peer.Comm.Call("DataCenterComm.AppendEntriesHandler",
+		appendEntriesRequest, &appendEntriesReply)
 	if err != nil {
 		log.Printf("Cannot reach peer, %s\n", peer.Address)
 		peer.Comm = nil
@@ -281,15 +297,16 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 
 func checkAndUpdateLogs() {
 	// If commitIndex > lastApplied: increment lastApplied,
+	fmt.Println("commitIndex", self.StateParam.CommitIndex )
+	fmt.Println("lastApplied", self.StateParam.LastApplied )
+	
 	if self.StateParam.CommitIndex > self.StateParam.LastApplied {
 		// apply log[lastApplied] to state machine (§5.3)
 
-		for i := self.StateParam.LastApplied + 1; i < len(self.StateParam.Logs); i++ {
-			self.Conf.RemainingTickets -=
-				self.StateParam.Logs[i].Num
-		}
+		self.ApplyLogsToStateMachine()
 
 		self.StateParam.LastApplied = self.StateParam.CommitIndex
 	}
 	fmt.Println(self.StateParam.Logs)
+	self.WriteToStorage()
 }
