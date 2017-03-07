@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/rpc"
 	"time"
+	_ "math/rand"
+	"math/rand"
 )
 
 type Config struct {
@@ -65,10 +67,16 @@ func ReadConfig() Config {
 		fmt.Println(peer.ProcessId, peer)
 		conf.PeersMap[peer.ProcessId] = peer
 	}
-
+	rand.Seed( time.Now().UTC().UnixNano())
 	fmt.Println("peersmap", conf.PeersMap)
-
-	conf.Timeout = conf.Timeout * time.Second
+	
+	rand := int64(conf.Timeout) + rand.Int63n(int64(conf.Timeout))
+	fmt.Println("rand", rand)
+	
+	conf.Timeout = time.Duration(rand)
+	
+	conf.Timeout = conf.Timeout * time.Millisecond
+	fmt.Println("timeout", conf.Timeout)
 	conf.InitialTktNum = conf.RemainingTickets
 	fmt.Println(conf)
 	return conf

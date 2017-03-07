@@ -43,13 +43,13 @@ func followerBehavior() {
 func startElection() {
 	// Increment currentTerm
 	self.StateParam.CurrentTerm++
+	fmt.Println("Term", self.StateParam.CurrentTerm)
 
 	// Vote for self
 	self.StateParam.VotedFor = self.Conf.ProcessID
 	self.GotNumVotes = 1
 
 	// TODO: Send RequestVote RPCs to all other servers
-	fmt.Println(len(self.Conf.Peers))
 
 	done := make(chan bool)
 
@@ -90,6 +90,12 @@ func startElection() {
 			if requestVoteReply.VoteGranted {
 				self.GotNumVotes++
 				log.Printf("GotNumVotes: %v", self.GotNumVotes)
+			} else {
+				self.ChangeState(FOLLOWER)
+				self.StateParam.CurrentTerm = requestVoteReply.Term
+				self.StateParam.VotedFor = peer.ProcessId
+				done <- false
+				return
 			}
 
 			if receivedMajorityVotes() {
@@ -99,8 +105,11 @@ func startElection() {
 	}
 
 	go func() {
-		<-done
-		self.ChangeState(LEADER)
+		leaderGranted := <-done
+		if leaderGranted{
+			self.ChangeState(LEADER)
+			self.ResetPeers()
+		}
 		
 		/*
 		nextIndex[]
@@ -115,7 +124,6 @@ func startElection() {
 		known to be replicated on server
 		(initialized to 0, increases monotonically)
 		*/
-		self.ResetPeers()
 	}()
 }
 

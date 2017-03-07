@@ -1,7 +1,7 @@
 {
   "self": "127.0.0.1:1235",
   "processid": 2,
-  "election_timeout": 5,
+  "election_timeout": 5000,
   "tickets": 5,
   "max_attempts": 1000,
   "delay_in_seconds": 5,

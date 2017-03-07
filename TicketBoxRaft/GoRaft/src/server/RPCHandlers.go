@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	_ "fmt"
 	"log"
 )
 
@@ -90,6 +89,12 @@ func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 	log := LogEntry{
 		Num:  req.NumTickets,
 		Term: self.StateParam.CurrentTerm,
+	}
+	
+	if req.NumTickets > self.Conf.RemainingTickets {
+		reply.Success = false
+		reply.Remains = self.Conf.RemainingTickets
+		return
 	}
 	self.StateParam.Logs = append(self.StateParam.Logs, log)
 	// TODO: append entries to peers

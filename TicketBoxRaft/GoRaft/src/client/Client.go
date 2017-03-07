@@ -83,7 +83,7 @@ func buyTicket(amount int) {
 	reply := new(BuyTicketReply)
 	err := rpcClient.Call("ClientComm.BuyTicketHandler", args, &reply)
 	if err != nil {
-		log.Fatal("Error:ddd", err)
+		rpcClient = tryToConnectToServer("tcp", server)
 	}
 
 	if reply.Success {
@@ -113,7 +113,7 @@ type BuyTicketRequest struct {
 var rpcClient *rpc.Client
 var server Server
 
-func newRPCclient(protocol string, server Server) *rpc.Client {
+func tryToConnectToServer(protocol string, server Server) *rpc.Client {
 	var client *rpc.Client
 	var err error
 	var i int
@@ -136,7 +136,7 @@ func newRPCclient(protocol string, server Server) *rpc.Client {
 func init() {
 	server = ReadConfig()
 
-	rpcClient = newRPCclient("tcp", server)
+	rpcClient = tryToConnectToServer("tcp", server)
 }
 
 func main() {
