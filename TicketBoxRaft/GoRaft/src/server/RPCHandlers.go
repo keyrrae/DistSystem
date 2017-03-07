@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	_ "fmt"
 	"log"
-	"fmt"
 )
 
 /*
@@ -50,7 +50,7 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 
 	if self.LeaderID != self.Conf.ProcessID {
 		fmt.Println("peersmap", self.Conf.PeersMap)
-		
+
 		leader := self.Conf.PeersMap[self.LeaderID]
 		fmt.Println("leader", leader)
 		leaderReply := new(BuyTicketReply)
@@ -85,7 +85,7 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 	return nil
 }
 
-func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply){
+func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 	// I'm the leader
 	log := LogEntry{
 		Num:  req.NumTickets,
@@ -93,14 +93,13 @@ func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply){
 	}
 	self.StateParam.Logs = append(self.StateParam.Logs, log)
 	// TODO: append entries to peers
-	
+
 	leaderBehavior()
-	
+
 	reply.Success = true
 	//self.Conf.RemainingTickets -= req.NumTickets
 	reply.Remains = self.Conf.RemainingTickets
 }
-
 
 func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 	reply *RequestVoteReply) error {

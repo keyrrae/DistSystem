@@ -26,7 +26,7 @@ func followerBehavior() {
 	for _, peer := range self.Conf.Peers {
 		tryEstablishConnection(peer)
 	}
-	
+
 	if time.Since(self.LastHeartbeat) > self.Conf.Timeout {
 		// Follower timeout, convert to candidate
 		self.ChangeState(CANDIDATE)
@@ -175,7 +175,7 @@ func updateCommitIndex() {
 	}
 	fmt.Println("matchIndexMap", matchIndexMap)
 	fmt.Println("commit index", self.StateParam.CommitIndex)
-	
+
 	for k, v := range matchIndexMap {
 		if v >= self.Conf.NumMajority {
 			for i := self.StateParam.CommitIndex + 1; i <= k; i++ {
@@ -185,7 +185,7 @@ func updateCommitIndex() {
 			}
 		}
 	}
-	
+
 	fmt.Println("commit index", self.StateParam.CommitIndex)
 }
 
@@ -224,15 +224,15 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 
 	//leaderLastCommitIndex := self.StateParam.CommitIndex
 	fmt.Println(appendEntriesRequest)
-	
+
 	if len(self.StateParam.Logs) > 0 {
 		if peer.MatchedIndex >= 0 {
 			appendEntriesRequest.PrevLogTerm =
 				self.StateParam.Logs[peer.MatchedIndex].Term
-		} else{
+		} else {
 			appendEntriesRequest.PrevLogTerm = self.StateParam.CurrentTerm
 		}
-		
+
 		for i := peer.NextIndex; i < len(self.StateParam.Logs); i++ {
 			appendEntriesRequest.Entries = append(appendEntriesRequest.Entries,
 				self.StateParam.Logs[i])
@@ -242,7 +242,7 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 	}
 
 	appendEntriesReply := new(AppendEntriesReply)
-	
+
 	fmt.Println(appendEntriesRequest)
 
 	err := peer.Comm.Call("DataCenterComm.AppendEntriesHandler", appendEntriesRequest, &appendEntriesReply)
@@ -283,12 +283,12 @@ func checkAndUpdateLogs() {
 	// If commitIndex > lastApplied: increment lastApplied,
 	if self.StateParam.CommitIndex > self.StateParam.LastApplied {
 		// apply log[lastApplied] to state machine (§5.3)
-		
-		for i:= self.StateParam.LastApplied + 1; i < len(self.StateParam.Logs); i++ {
+
+		for i := self.StateParam.LastApplied + 1; i < len(self.StateParam.Logs); i++ {
 			self.Conf.RemainingTickets -=
 				self.StateParam.Logs[i].Num
 		}
-		
+
 		self.StateParam.LastApplied = self.StateParam.CommitIndex
 	}
 	fmt.Println(self.StateParam.Logs)
