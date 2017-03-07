@@ -23,6 +23,10 @@ func runStateMachine() {
 }
 
 func followerBehavior() {
+	for _, peer := range self.Conf.Peers {
+		tryEstablishConnection(peer)
+	}
+	
 	if time.Since(self.LastHeartbeat) > self.Conf.Timeout {
 		// Follower timeout, convert to candidate
 		self.ChangeState(CANDIDATE)

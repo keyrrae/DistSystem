@@ -3,6 +3,7 @@ package main
 import (
 	_ "fmt"
 	"log"
+	"fmt"
 )
 
 /*
@@ -48,7 +49,10 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 	log.Println("received buy ticket from a client")
 
 	if self.LeaderID != self.Conf.ProcessID {
+		fmt.Println("peersmap", self.Conf.PeersMap)
+		
 		leader := self.Conf.PeersMap[self.LeaderID]
+		fmt.Println("leader", leader)
 		leaderReply := new(BuyTicketReply)
 		err := leader.Comm.Call("DataCenterComm.BuyTicketHandler", req, &leaderReply)
 		if err != nil {
@@ -62,18 +66,7 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 		reply.Remains = leaderReply.Remains
 		reply.Success = leaderReply.Success
 	} else {
-		log := LogEntry{
-			Num:  req.NumTickets,
-			Term: self.StateParam.CurrentTerm,
-		}
-
-		self.StateParam.Logs = append(self.StateParam.Logs, log)
-		// TODO: append entries to peers
-		leaderBehavior()
-
-		reply.Success = true
-		//self.Conf.RemainingTickets -= req.NumTickets
-		reply.Remains = self.Conf.RemainingTickets
+		sendReqToFollowers(req, reply)
 	}
 
 	return nil
@@ -83,19 +76,7 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 	log.Println("received buy ticket from a follower redirection")
 
 	if self.LeaderID == self.Conf.ProcessID {
-		// I'm the leader
-		log := LogEntry{
-			Num:  req.NumTickets,
-			Term: self.StateParam.CurrentTerm,
-		}
-		self.StateParam.Logs = append(self.StateParam.Logs, log)
-		// TODO: append entries to peers
-		
-		leaderBehavior()
-		
-		reply.Success = true
-		//self.Conf.RemainingTickets -= req.NumTickets
-		reply.Remains = self.Conf.RemainingTickets
+		sendReqToFollowers(req, reply)
 	} else {
 		reply.Success = false
 		reply.Remains = self.Conf.RemainingTickets
@@ -103,6 +84,23 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 
 	return nil
 }
+
+func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply){
+	// I'm the leader
+	log := LogEntry{
+		Num:  req.NumTickets,
+		Term: self.StateParam.CurrentTerm,
+	}
+	self.StateParam.Logs = append(self.StateParam.Logs, log)
+	// TODO: append entries to peers
+	
+	leaderBehavior()
+	
+	reply.Success = true
+	//self.Conf.RemainingTickets -= req.NumTickets
+	reply.Remains = self.Conf.RemainingTickets
+}
+
 
 func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 	reply *RequestVoteReply) error {

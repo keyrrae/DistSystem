@@ -55,16 +55,19 @@ func ReadConfig() Config {
 			break
 		}
 	}
-
-	self.Conf.PeersMap = make(map[int]*Peer)
-
+	
+	conf.PeersMap = make(map[int]*Peer)
+	
 	for _, peer := range conf.Peers {
 		peer.MatchedIndex = -1
 		fmt.Println(peer.MatchedIndex)
 		peer.NextIndex = 0
-		self.Conf.PeersMap[peer.ProcessId] = peer
+		fmt.Println(peer.ProcessId, peer)
+		conf.PeersMap[peer.ProcessId] = peer
 	}
-
+	
+	fmt.Println("peersmap", conf.PeersMap)
+	
 	conf.Timeout = conf.Timeout * time.Second
 	conf.InitialTktNum = conf.RemainingTickets
 	fmt.Println(conf)
