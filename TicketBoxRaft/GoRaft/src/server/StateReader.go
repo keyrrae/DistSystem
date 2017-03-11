@@ -16,8 +16,10 @@ type StateParameters struct {
 }
 
 type LogEntry struct {
-	Num  int `json:"value"`
-	Term int `json:"term"`
+	Num                   int    `json:"value"`
+	Term                  int    `json:"term"`
+	IsConfigurationChange bool
+	NewConfig             []Peer
 }
 
 func readSavedState() StateParameters {
@@ -37,9 +39,9 @@ func readSavedState() StateParameters {
 	if err != nil {
 		log.Fatal(err, "\r\n")
 	}
-	
+
 	stateParam.LastApplied = -1
-	
+
 	fmt.Println(stateParam)
 	return stateParam
 }

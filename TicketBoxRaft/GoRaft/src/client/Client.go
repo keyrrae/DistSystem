@@ -37,6 +37,9 @@ func handleUserInput(command string) {
 				fallthrough
 			case "help":
 				printUsage()
+			case "c":
+				servers := server.NewConfig
+				changeConfig(servers)
 			case "e":
 				fallthrough
 			case "exit":
@@ -72,6 +75,10 @@ func handleUserInput(command string) {
 	}
 }
 
+type BuyTicketRequest struct {
+	NumTickets int
+}
+
 type BuyTicketReply struct {
 	Success bool
 	Remains int
@@ -95,6 +102,32 @@ func buyTicket(amount int) {
 	//time.Sleep(100 * time.Millisecond)
 }
 
+
+// Configuration change request, reply, and func
+type ChangeConfigRequest struct {
+	Servers	[]Peer
+}
+
+type ChangeConfigReply struct {
+	Success bool
+}
+
+func changeConfig(servers []Peer){
+	args := ChangeConfigRequest{Servers: servers}
+	reply := new(ChangeConfigReply)
+	err := rpcClient.Call("ClientComm.ChangeConfigHandler", args, &reply)
+	if err != nil {
+		rpcClient = tryToConnectToServer("tcp", server)
+	}
+
+	if reply.Success {
+		fmt.Println("Configuration successfully changed.")
+	} else {
+		fmt.Println("Configuration change failed")
+	}
+	//fmt.Println("Remaining tickets:", reply.Remains)
+}
+
 func waitUserInput() {
 	printUsage()
 	for {
@@ -104,10 +137,6 @@ func waitUserInput() {
 		command, _ := reader.ReadString('\n')
 		handleUserInput(command)
 	}
-}
-
-type BuyTicketRequest struct {
-	NumTickets int
 }
 
 var rpcClient *rpc.Client

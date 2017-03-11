@@ -44,6 +44,62 @@ type DataCenterComm struct {
 type DataCenterReply struct {
 }
 
+type ChangeConfigRequest struct {
+	Servers	[]Peer
+}
+
+type ChangeConfigReply struct {
+	Success bool
+}
+
+func (t *ClientComm) ChangeConfigHandler(req *ChangeConfigRequest, reply *ChangeConfigReply) error {
+	log.Println("received configuration change request from a client")
+
+	if self.LeaderID != self.Conf.ProcessID {
+		leader := self.Conf.PeersMap[self.LeaderID]
+		leaderReply := new(ChangeConfigReply)
+		err := leader.Comm.Call("DataCenterComm.ChangeConfigHandler", req, &leaderReply)
+		if err != nil {
+			leader.Comm = nil
+			leader.Connected = false
+			reply.Success = false
+			return err
+		}
+		reply.Success = leaderReply.Success
+	} else {
+		performConfigurationChange(req, reply)
+	}
+
+	return nil
+}
+
+func (t *DataCenterComm) ChangeConfigHandler(req *ChangeConfigRequest, reply *ChangeConfigReply) error {
+	log.Println("received buy ticket from a follower redirection")
+
+	if self.LeaderID == self.Conf.ProcessID {
+		performConfigurationChange(req, reply)
+	} else {
+		reply.Success = false
+	}
+	return nil
+}
+
+func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigReply){
+	logEnt := LogEntry{
+		Num:  0,
+		Term: self.StateParam.CurrentTerm,
+		IsConfigurationChange: true,
+		NewConfig: req.Servers,
+	}
+
+	self.StateParam.Logs = append(self.StateParam.Logs, logEnt)
+
+	leaderBehavior()
+
+	reply.Success = true
+	//self.Conf.RemainingTickets -= req.NumTickets
+}
+
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
 	log.Println("received buy ticket from a client")
 
@@ -86,7 +142,7 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 
 func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 	// I'm the leader
-	log := LogEntry{
+	logEnt := LogEntry{
 		Num:  req.NumTickets,
 		Term: self.StateParam.CurrentTerm,
 	}
@@ -96,7 +152,7 @@ func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 		reply.Remains = self.Conf.RemainingTickets
 		return
 	}
-	self.StateParam.Logs = append(self.StateParam.Logs, log)
+	self.StateParam.Logs = append(self.StateParam.Logs, logEnt)
 	// TODO: append entries to peers
 
 	leaderBehavior()
@@ -120,10 +176,10 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 		return nil
 	}
 
-	correctID := (self.StateParam.VotedFor == -1 ||
-		self.StateParam.VotedFor == req.CandidateId)
+	correctID := self.StateParam.VotedFor == -1 ||
+		self.StateParam.VotedFor == req.CandidateId
 
-	satisfactoryTerm := (req.Term >= self.StateParam.CurrentTerm)
+	satisfactoryTerm := req.Term >= self.StateParam.CurrentTerm
 	if correctID && satisfactoryTerm {
 		reply.VoteGranted = true
 		// TODO: check how to reply term

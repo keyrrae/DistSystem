@@ -1,4 +1,26 @@
 {
   "address": "127.0.0.1:1236",
-  "max_attempts": 1000
+  "max_attempts": 1000,
+  "new_configuration": [
+    {
+      "server_address": "127.0.0.1:1234",
+      "id": 1
+    },
+    {
+      "server_address": "127.0.0.1:1235",
+      "id": 2
+    },
+    {
+      "server_address": "127.0.0.1:1236",
+      "id": 3
+    },
+    {
+      "server_address": "127.0.0.1:1237",
+      "id": 4
+    },
+    {
+      "server_address": "127.0.0.1:1238",
+      "id": 5
+    }
+  ]
 }

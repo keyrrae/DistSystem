@@ -9,6 +9,12 @@ import (
 type Server struct {
 	Address     string `json:"address"`
 	MaxAttempts int    `json:"max_attempts"`
+	NewConfig []Peer `json:"new_configuration"`
+}
+
+type Peer struct {
+	Address   string `json:"server_address"`
+	ProcessId int    `json:"id"`
 }
 
 func ReadConfig() Server {
