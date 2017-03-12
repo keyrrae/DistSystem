@@ -132,6 +132,19 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 		time.Sleep(100 * time.Millisecond)
 	}
 
+	// Change to new configuration
+	newConfigAddressMap := make(map[string]bool)
+	for _, serverFromNewConfig := range newConfig{
+		newConfigAddressMap[serverFromNewConfig.Address] = true
+	}
+
+	for i, serverFromJointConfig := range self.Conf.Peers {
+		if _, ok := newConfigAddressMap[serverFromJointConfig.Address]; !ok{
+			self.Conf.Peers = append(self.Conf.Peers[:i],
+				self.Conf.Peers[i+1:]...)
+		}
+	}
+
 	reply.Success = true
 }
 
@@ -188,12 +201,10 @@ func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 		return
 	}
 	self.StateParam.Logs = append(self.StateParam.Logs, logEntry)
-	// TODO: append entries to peers
 
 	leaderBehavior()
 
 	reply.Success = true
-	//self.Conf.RemainingTickets -= req.NumTickets
 	reply.Remains = self.Conf.RemainingTickets
 }
 
@@ -217,7 +228,6 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 	satisfactoryTerm := (req.Term >= self.StateParam.CurrentTerm)
 	if correctID && satisfactoryTerm {
 		reply.VoteGranted = true
-		// TODO: check how to reply term
 		reply.Term = self.StateParam.CurrentTerm
 		self.StateParam.VotedFor = req.CandidateId
 	}
@@ -266,7 +276,7 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 			min(leaderCommit, index of last new entry)
 	*/
 
-	// TODO: For a candidate:
+	// For a candidate:
 	// if AppendEntries RPC received from new leader: convert to follower
 	if self.State == CANDIDATE {
 		self.ChangeState(FOLLOWER)

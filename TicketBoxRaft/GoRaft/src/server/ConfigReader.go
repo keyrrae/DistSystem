@@ -14,13 +14,14 @@ import (
 type Config struct {
 	MyAddress        string        `json:"self"`
 	ProcessID        int           `json:"processid"`
-	Peers            []*Peer       `json:"servers"`
+	Servers          []*Peer       `json:"servers"`
 	RemainingTickets int           `json:"tickets"`
 	Timeout          time.Duration `json:"election_timeout"`
 	MaxAttempts      int           `json:"max_attempts"`
 	Delay            int           `json:"delay_in_seconds"`
 	InitialTktNum    int
 	NumMajority      int
+	Peers			 []*Peer
 	PeersMap         map[int]*Peer
 }
 
@@ -50,23 +51,26 @@ func ReadConfig() Config {
 		log.Fatal(err, "\r\n")
 	}
 
-	conf.NumMajority = len(conf.Peers)/2 + 1
-	for i, peer := range conf.Peers {
-		if peer.Address == conf.MyAddress {
-			conf.Peers = append(conf.Peers[:i], conf.Peers[i+1:]...)
-			break
+	conf.NumMajority = len(conf.Servers)/2 + 1
+	for _, peer := range conf.Servers {
+		if peer.Address != conf.MyAddress {
+			newPeer := Peer{
+				Address: peer.Address,
+				ProcessId: peer.ProcessId,
+				NextIndex    :0,
+
+				MatchedIndex: -1,
+			}
+			conf.Peers = append(conf.Peers, &newPeer)
 		}
 	}
 
 	conf.PeersMap = make(map[int]*Peer)
 
 	for _, peer := range conf.Peers {
-		peer.MatchedIndex = -1
-		fmt.Println(peer.MatchedIndex)
-		peer.NextIndex = 0
-		fmt.Println(peer.ProcessId, peer)
 		conf.PeersMap[peer.ProcessId] = peer
 	}
+
 	rand.Seed( time.Now().UTC().UnixNano())
 	fmt.Println("peersmap", conf.PeersMap)
 	
@@ -75,7 +79,6 @@ func ReadConfig() Config {
 	
 	conf.Timeout = time.Duration(rand)
 	
-	conf.Timeout = conf.Timeout * time.Millisecond
 	fmt.Println("timeout", conf.Timeout)
 	conf.InitialTktNum = conf.RemainingTickets
 	fmt.Println(conf)
