@@ -3,14 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"encoding/json"
 )
-
-/*
-type handlers interface {
-	RequestVoteHandler(req *DataCenterRequest,
-		reply *DataCenterReply) error
-	AppendEntriesHandler() float64
-}*/
 
 type RequestVoteRequest struct {
 	Term         int // candidate’s term
@@ -42,6 +36,94 @@ type DataCenterComm struct {
 }
 
 type DataCenterReply struct {
+}
+
+type ChangeConfigRequest struct {
+	Servers []byte
+}
+
+type ChangeConfigReply struct {
+	Success bool
+}
+
+func (t *ClientComm) ChangeConfigHandler(req *ChangeConfigRequest, reply *ChangeConfigReply) error {
+	log.Println("received configuration change request from a client")
+
+	if self.LeaderID != self.Conf.ProcessID {
+		log.Println("learderID", self.LeaderID)
+		leader := self.Conf.PeersMap[self.LeaderID]
+		log.Println("leader", leader)
+
+		leaderReply := new(ChangeConfigReply)
+		err := leader.Comm.Call("DataCenterComm.ChangeConfigHandler", req, &leaderReply)
+		if err != nil {
+			leader.Comm = nil
+			leader.Connected = false
+			reply.Success = false
+			return err
+		}
+		reply.Success = leaderReply.Success
+	} else {
+		performConfigurationChange(req, reply)
+	}
+
+	return nil
+}
+
+func (t *DataCenterComm) ChangeConfigHandler(req *ChangeConfigRequest, reply *ChangeConfigReply) error {
+	log.Println("received configuration change request from a follower redirection")
+
+	if self.LeaderID == self.Conf.ProcessID {
+		performConfigurationChange(req, reply)
+	} else {
+		reply.Success = false
+	}
+	return nil
+}
+
+func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigReply) {
+	var newConfig []Peer
+
+	err := json.Unmarshal(req.Servers, &newConfig)
+	if err != nil{
+		log.Println("parse log error")
+	}
+	log.Println("Servers", newConfig)
+
+	// Form a joint consensus configuration
+	addressMap := make(map[string]bool)
+
+	addressMap[self.Conf.MyAddress] = true
+	for _, oldPeer := range self.Conf.Peers{
+		addressMap[oldPeer.Address] = true
+	}
+
+	for _, peer := range newConfig{
+		if _, ok := addressMap[peer.Address]; !ok {
+			newPeer := Peer{
+				Address:peer.Address,
+				ProcessId: peer.ProcessId,
+				MatchedIndex: -1,
+				NextIndex: 0,
+			}
+
+			self.Conf.Peers = append(self.Conf.Peers, &newPeer)
+			addressMap[peer.Address] = true
+		}
+	}
+
+	// append new config as an entry
+	logEntry := LogEntry{
+		Num:  0,
+		Term: self.StateParam.CurrentTerm,
+		IsConfigurationChange: true,
+		NewConfig: string(req.Servers),
+	}
+
+	self.StateParam.Logs = append(self.StateParam.Logs, logEntry)
+
+	leaderBehavior()
+
 }
 
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
@@ -86,17 +168,17 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 
 func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 	// I'm the leader
-	log := LogEntry{
+	logEntry := LogEntry{
 		Num:  req.NumTickets,
 		Term: self.StateParam.CurrentTerm,
 	}
-	
+
 	if req.NumTickets > self.Conf.RemainingTickets {
 		reply.Success = false
 		reply.Remains = self.Conf.RemainingTickets
 		return
 	}
-	self.StateParam.Logs = append(self.StateParam.Logs, log)
+	self.StateParam.Logs = append(self.StateParam.Logs, logEntry)
 	// TODO: append entries to peers
 
 	leaderBehavior()
