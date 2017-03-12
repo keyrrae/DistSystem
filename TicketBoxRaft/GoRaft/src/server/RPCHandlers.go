@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 	"encoding/json"
 )
 
@@ -106,11 +107,12 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 				MatchedIndex: -1,
 				NextIndex: 0,
 			}
-
 			self.Conf.Peers = append(self.Conf.Peers, &newPeer)
 			addressMap[peer.Address] = true
 		}
 	}
+
+	self.Conf.NumMajority = len(self.Conf.Peers) / 2 + 1
 
 	// append new config as an entry
 	logEntry := LogEntry{
@@ -123,7 +125,14 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 	self.StateParam.Logs = append(self.StateParam.Logs, logEntry)
 
 	leaderBehavior()
+	for{
+		if self.StateParam.CommitIndex == self.StateParam.LastApplied{
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
+	reply.Success = true
 }
 
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
