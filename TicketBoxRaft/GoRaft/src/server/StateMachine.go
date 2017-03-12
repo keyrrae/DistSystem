@@ -200,7 +200,7 @@ func updateCommitIndex() {
 	fmt.Println("commit index", self.StateParam.CommitIndex)
 
 	for k, v := range matchIndexMap {
-		if v >= self.Conf.NumMajority {
+		if v + 1 >= self.Conf.NumMajority {
 			for i := self.StateParam.CommitIndex + 1; i <= k; i++ {
 				if self.StateParam.Logs[i].Term == self.StateParam.CurrentTerm {
 					self.StateParam.CommitIndex = k

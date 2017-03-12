@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"gopkg.in/square/go-jose.v1/json"
 )
 
 func printUsage() {
@@ -37,6 +38,9 @@ func handleUserInput(command string) {
 				fallthrough
 			case "help":
 				printUsage()
+			case "c":
+				servers := server.NewConfig
+				changeConfig(servers)
 			case "e":
 				fallthrough
 			case "exit":
@@ -72,6 +76,10 @@ func handleUserInput(command string) {
 	}
 }
 
+type BuyTicketRequest struct {
+	NumTickets int
+}
+
 type BuyTicketReply struct {
 	Success bool
 	Remains int
@@ -95,6 +103,37 @@ func buyTicket(amount int) {
 	//time.Sleep(100 * time.Millisecond)
 }
 
+// Configuration change request, reply, and func
+type ChangeConfigRequest struct {
+	Servers []byte
+}
+
+type ChangeConfigReply struct {
+	Success bool
+}
+
+func changeConfig(servers []Peer) {
+
+	serversJson, err := json.Marshal(servers)
+	if err != nil {
+		return
+	}
+
+	args := ChangeConfigRequest{Servers: serversJson}
+	reply := new(ChangeConfigReply)
+	err = rpcClient.Call("ClientComm.ChangeConfigHandler", args, &reply)
+	if err != nil {
+		rpcClient = tryToConnectToServer("tcp", server)
+	}
+
+	if reply.Success {
+		fmt.Println("Configuration successfully changed.")
+	} else {
+		fmt.Println("Configuration change failed")
+	}
+	//fmt.Println("Remaining tickets:", reply.Remains)
+}
+
 func waitUserInput() {
 	printUsage()
 	for {
@@ -104,10 +143,6 @@ func waitUserInput() {
 		command, _ := reader.ReadString('\n')
 		handleUserInput(command)
 	}
-}
-
-type BuyTicketRequest struct {
-	NumTickets int
 }
 
 var rpcClient *rpc.Client

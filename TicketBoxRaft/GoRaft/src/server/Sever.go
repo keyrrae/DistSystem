@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 	_ "fmt"
+	"log"
 	"encoding/json"
 	"io/ioutil"
 )
@@ -20,7 +21,7 @@ func (server *Server) ChangeState(state ServerState) {
 	server.State = state
 	server.ResetHeartbeat()
 	if state == LEADER {
-		self.LeaderID = self.Conf.ProcessID
+		server.LeaderID = server.Conf.ProcessID
 	}
 }
 
@@ -47,10 +48,53 @@ func (server *Server) WriteToStorage() {
 }
 
 func (server *Server) ApplyLogsToStateMachine() {
-	self.Conf.RemainingTickets = self.Conf.InitialTktNum
-	for i := 0; i <= self.StateParam.CommitIndex; i++ {
-		self.Conf.RemainingTickets -= self.StateParam.Logs[i].Num
+	server.Conf.RemainingTickets = server.Conf.InitialTktNum
+	for i := 0; i <= server.StateParam.CommitIndex; i++ {
+		if server.StateParam.Logs[i].IsConfigurationChange{
+			server.UpdateConfigAndWriteToStorage(server.StateParam.Logs[i].NewConfig)
+		}
+		server.Conf.RemainingTickets -= server.StateParam.Logs[i].Num
 	}
+}
+
+func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
+	var newConfig []Peer
+
+	err := json.Unmarshal([]byte(confStr), &newConfig)
+	if err != nil{
+		log.Println("parse log error")
+	}
+
+	oldConfigAddressMap := make(map[string]bool)
+	for _, serverFromOldConfig := range server.Conf.Servers{
+		oldConfigAddressMap[serverFromOldConfig.Address] = true
+	}
+
+	for _, peer := range newConfig{
+		if _, ok := oldConfigAddressMap[peer.Address]; !ok {
+			newServer := Peer{
+				Address: peer.Address,
+				ProcessId: peer.ProcessId,
+			}
+			server.Conf.Servers = append(server.Conf.Servers, &newServer)
+		}
+	}
+
+	newConfigAddressMap := make(map[string]bool)
+	for _, serverFromNewConfig := range newConfig{
+		newConfigAddressMap[serverFromNewConfig.Address] = true
+	}
+
+	for i, serverFromSuperSet := range server.Conf.Servers {
+		if _, ok := newConfigAddressMap[serverFromSuperSet.Address]; !ok{
+			server.Conf.Servers = append(server.Conf.Servers[:i],
+				server.Conf.Servers[i+1:]...)
+		}
+	}
+
+	configJson, err := json.MarshalIndent(server.Conf, "", "    ")
+	check(err)
+	err = ioutil.WriteFile("./server_conf.json", configJson, 0755)
 }
 
 func check(err error){

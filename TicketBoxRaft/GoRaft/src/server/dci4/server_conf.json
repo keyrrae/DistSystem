@@ -1,0 +1,30 @@
+{
+  "self": "127.0.0.1:1237",
+  "processid": 4,
+  "election_timeout": 5000000000,
+  "tickets": 5,
+  "max_attempts": 1000,
+  "delay_in_seconds": 5,
+  "servers": [
+    {
+      "address": "127.0.0.1:1234",
+      "id": 1
+    },
+    {
+      "address": "127.0.0.1:1235",
+      "id": 2
+    },
+    {
+      "address": "127.0.0.1:1236",
+      "id": 3
+    },
+    {
+      "address": "127.0.0.1:1237",
+      "id": 4
+    },
+    {
+      "address": "127.0.0.1:1238",
+      "id": 5
+    }
+  ]
+}
