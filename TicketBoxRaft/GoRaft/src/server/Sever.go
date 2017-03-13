@@ -22,6 +22,7 @@ func (server *Server) ChangeState(state ServerState) {
 	server.ResetHeartbeat()
 	if state == LEADER {
 		server.LeaderID = server.Conf.ProcessID
+		self.ResetPeers()
 	}
 }
 
@@ -35,7 +36,7 @@ func (server *Server) SetLeaderID(leaderId int) {
 
 func (server *Server) ResetPeers(){
 	for _, peer := range server.Conf.Peers {
-		peer.NextIndex = len(server.StateParam.Logs)
+		peer.NextIndex = 0//len(server.StateParam.Logs)
 		peer.MatchedIndex = -1
 	}
 }
@@ -48,12 +49,15 @@ func (server *Server) WriteToStorage() {
 }
 
 func (server *Server) ApplyLogsToStateMachine() {
-	server.Conf.RemainingTickets = server.Conf.InitialTktNum
+	server.StateParam.RemainingTickets = server.Conf.InitialTktNum
+	if server.StateParam.CommitIndex > len(server.StateParam.Logs) - 1{
+		return
+	}
 	for i := 0; i <= server.StateParam.CommitIndex; i++ {
 		if server.StateParam.Logs[i].IsConfigurationChange{
 			server.UpdateConfigAndWriteToStorage(server.StateParam.Logs[i].NewConfig)
 		}
-		server.Conf.RemainingTickets -= server.StateParam.Logs[i].Num
+		server.StateParam.RemainingTickets -= server.StateParam.Logs[i].Num
 	}
 }
 

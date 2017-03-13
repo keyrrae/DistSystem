@@ -15,11 +15,10 @@ type Config struct {
 	MyAddress        string        `json:"self"`
 	ProcessID        int           `json:"processid"`
 	Servers          []*Peer       `json:"servers"`
-	RemainingTickets int           `json:"tickets"`
+	InitialTktNum int           	`json:"tickets"`
 	Timeout          time.Duration `json:"election_timeout"`
 	MaxAttempts      int           `json:"max_attempts"`
 	Delay            int           `json:"delay_in_seconds"`
-	InitialTktNum    int
 	NumMajority      int
 	Peers			 []*Peer
 	PeersMap         map[int]*Peer
@@ -58,7 +57,6 @@ func ReadConfig() Config {
 				Address: peer.Address,
 				ProcessId: peer.ProcessId,
 				NextIndex    :0,
-
 				MatchedIndex: -1,
 			}
 			conf.Peers = append(conf.Peers, &newPeer)
@@ -71,7 +69,7 @@ func ReadConfig() Config {
 		conf.PeersMap[peer.ProcessId] = peer
 	}
 
-	rand.Seed( time.Now().UTC().UnixNano())
+	rand.Seed(time.Now().UTC().UnixNano())
 	fmt.Println("peersmap", conf.PeersMap)
 	
 	rand := int64(conf.Timeout) + rand.Int63n(int64(conf.Timeout))
@@ -80,7 +78,6 @@ func ReadConfig() Config {
 	conf.Timeout = time.Duration(rand)
 	
 	fmt.Println("timeout", conf.Timeout)
-	conf.InitialTktNum = conf.RemainingTickets
 	fmt.Println(conf)
 	return conf
 }

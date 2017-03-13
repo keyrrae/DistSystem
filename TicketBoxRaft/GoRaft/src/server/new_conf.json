@@ -2,7 +2,7 @@
   "self": "127.0.0.1:1237",
   "processid": 4,
   "election_timeout": 5000000000,
-  "tickets": 5,
+  "tickets": 100,
   "max_attempts": 1000,
   "delay_in_seconds": 5,
   "servers": [

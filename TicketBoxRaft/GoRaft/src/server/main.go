@@ -12,15 +12,16 @@ var self Server
 
 func init() {
 	configuration := ReadConfig()
-	stateParams := readSavedState()
 
 	self = Server{
 		Conf:        configuration,
 		State:       FOLLOWER,
-		StateParam:  stateParams,
 		GotNumVotes: 0,
 	}
 
+	stateParams := readSavedState()
+
+	self.StateParam = stateParams
 	self.LastHeartbeat = time.Now()
 }
 

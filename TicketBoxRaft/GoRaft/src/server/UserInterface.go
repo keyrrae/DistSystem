@@ -56,7 +56,7 @@ func handleUserInput(command string) {
 	case "value":
 		fallthrough
 	case "pv":
-		fmt.Println("Remaining tickets:", self.Conf.RemainingTickets)
+		fmt.Println("Remaining tickets:", self.StateParam.RemainingTickets)
 
 	case "queue":
 		fallthrough
@@ -71,7 +71,7 @@ func handleUserInput(command string) {
 	case "reset":
 		fallthrough
 	case "rst":
-		self.Conf.RemainingTickets = self.Conf.InitialTktNum
+		self.StateParam.RemainingTickets = self.Conf.InitialTktNum
 
 	default:
 		printUsage()

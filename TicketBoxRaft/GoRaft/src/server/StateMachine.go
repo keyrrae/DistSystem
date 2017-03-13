@@ -37,7 +37,7 @@ func followerBehavior() {
 
 	checkAndUpdateLogs()
 	log.Println(self.StateParam.CommitIndex)
-	log.Println(self.Conf.RemainingTickets)
+	log.Println(self.StateParam.RemainingTickets)
 }
 
 func startElection() {
@@ -108,7 +108,6 @@ func startElection() {
 		leaderGranted := <-done
 		if leaderGranted{
 			self.ChangeState(LEADER)
-			self.ResetPeers()
 		}
 		
 		/*
@@ -217,7 +216,10 @@ func sendAppendEntriesToAll() {
 	done := make(chan bool, len(self.Conf.Peers))
 
 	for _, peer := range self.Conf.Peers {
+		log.Println("peer.MatchedIndex", peer.MatchedIndex)
+
 		if !tryEstablishConnection(peer) {
+
 			done <- true
 			continue
 		}
@@ -305,6 +307,8 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 
 func checkAndUpdateLogs() {
 	// If commitIndex > lastApplied: increment lastApplied,
+	fmt.Println("Term", self.StateParam.CurrentTerm)
+
 	fmt.Println("commitIndex", self.StateParam.CommitIndex )
 	fmt.Println("lastApplied", self.StateParam.LastApplied )
 	

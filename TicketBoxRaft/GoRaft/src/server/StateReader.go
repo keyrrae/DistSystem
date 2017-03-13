@@ -11,6 +11,7 @@ type StateParameters struct {
 	CurrentTerm int        `json:"self"`
 	VotedFor    int        `json:"processid"`
 	Logs        []LogEntry `json:"logs"`
+	RemainingTickets	int 	`json:"ticket_number"`
 	CommitIndex int
 	LastApplied int
 }
@@ -31,6 +32,9 @@ func readSavedState() StateParameters {
 		stateParam.VotedFor = -1
 		stateParam.CommitIndex = -1
 		stateParam.LastApplied = -1
+		stateParam.RemainingTickets = self.Conf.InitialTktNum
+		fmt.Println(self.Conf.InitialTktNum)
+
 		fmt.Println(stateParam)
 		return stateParam
 	}
