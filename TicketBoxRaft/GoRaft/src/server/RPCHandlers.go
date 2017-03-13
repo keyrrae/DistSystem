@@ -162,7 +162,7 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 			leader.Comm = nil
 			leader.Connected = false
 			reply.Success = false
-			reply.Remains = self.Conf.RemainingTickets
+			reply.Remains = self.StateParam.RemainingTickets
 			return err
 		}
 
@@ -182,7 +182,7 @@ func (t *DataCenterComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicke
 		sendReqToFollowers(req, reply)
 	} else {
 		reply.Success = false
-		reply.Remains = self.Conf.RemainingTickets
+		reply.Remains = self.StateParam.RemainingTickets
 	}
 
 	return nil
@@ -195,9 +195,9 @@ func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 		Term: self.StateParam.CurrentTerm,
 	}
 
-	if req.NumTickets > self.Conf.RemainingTickets {
+	if req.NumTickets > self.StateParam.RemainingTickets {
 		reply.Success = false
-		reply.Remains = self.Conf.RemainingTickets
+		reply.Remains = self.StateParam.RemainingTickets
 		return
 	}
 	self.StateParam.Logs = append(self.StateParam.Logs, logEntry)
@@ -205,7 +205,7 @@ func sendReqToFollowers(req *BuyTicketRequest, reply *BuyTicketReply) {
 	leaderBehavior()
 
 	reply.Success = true
-	reply.Remains = self.Conf.RemainingTickets
+	reply.Remains = self.StateParam.RemainingTickets
 }
 
 func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
@@ -287,6 +287,9 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 	if self.State == FOLLOWER {
 		self.ResetHeartbeat()
 		self.SetLeaderID(req.LeaderId)
+		if req.Term > self.StateParam.CurrentTerm {
+			self.StateParam.CurrentTerm = req.Term
+		}
 	}
 
 	if self.State == LEADER {
@@ -315,6 +318,8 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		reply.Success = (self.StateParam.Logs[req.PrevLogIndex].Term == req.PrevLogTerm)
 	}
 
+	log.Println("req.PrevLogIndex", req.PrevLogIndex)
+	log.Println("req.Entries", req.Entries)
 	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex+1+len(req.Entries); i++ {
 		logIndex := i - req.PrevLogIndex - 1
 		if len(self.StateParam.Logs)-1 < i {
@@ -326,8 +331,10 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 			// follow it (§5.3)
 			if self.StateParam.Logs[i].Term != req.Entries[logIndex].Term {
 				self.StateParam.Logs = self.StateParam.Logs[:i]
+				//self.StateParam.Logs = append(self.StateParam.Logs[:i], req.Entries[logIndex])
 			}
 		}
+		log.Println(i, self.StateParam.Logs)
 	}
 
 	// If leaderCommit > commitIndex,
