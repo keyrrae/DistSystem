@@ -59,6 +59,12 @@ func (server *Server) ApplyLogsToStateMachine() {
 		}
 		server.StateParam.RemainingTickets -= server.StateParam.Logs[i].Num
 	}
+
+	for i := server.StateParam.CommitIndex + 1; i < len(self.StateParam.Logs); i++ {
+		if server.StateParam.Logs[i].IsConfigurationChange{
+			server.UpdateConfigAndWriteToStorage(server.StateParam.Logs[i].NewConfig)
+		}
+	}
 }
 
 func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
@@ -69,6 +75,15 @@ func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
 		log.Println("parse log error")
 	}
 
+	server.Conf.Servers = self.Conf.Servers[:0]
+	for _, peer := range newConfig {
+		newServer := Peer{
+			Address: peer.Address,
+			ProcessId: peer.ProcessId,
+		}
+		server.Conf.Servers = append(server.Conf.Servers, &newServer)
+	}
+	/*
 	oldConfigAddressMap := make(map[string]bool)
 	for _, serverFromOldConfig := range server.Conf.Servers{
 		oldConfigAddressMap[serverFromOldConfig.Address] = true
@@ -87,14 +102,31 @@ func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
 	newConfigAddressMap := make(map[string]bool)
 	for _, serverFromNewConfig := range newConfig{
 		newConfigAddressMap[serverFromNewConfig.Address] = true
-	}
+	}*/
 
-	for i, serverFromSuperSet := range server.Conf.Servers {
-		if _, ok := newConfigAddressMap[serverFromSuperSet.Address]; !ok{
-			server.Conf.Servers = append(server.Conf.Servers[:i],
-				server.Conf.Servers[i+1:]...)
+	server.Conf.Peers = server.Conf.Peers[:0]
+	for _, peer := range server.Conf.Servers {
+		if peer.Address != server.Conf.MyAddress {
+			newPeer := Peer{
+				Address: peer.Address,
+				ProcessId: peer.ProcessId,
+				NextIndex    :0,
+				MatchedIndex: -1,
+			}
+			server.Conf.Peers = append(server.Conf.Peers, &newPeer)
 		}
 	}
+
+	server.Conf.PeersMap = make(map[int]*Peer)
+
+	for _, peer := range server.Conf.Peers {
+		server.Conf.PeersMap[peer.ProcessId] = peer
+	}
+
+	log.Println("peers", len(server.Conf.Peers))
+	server.Conf.NumMajority = ( len(server.Conf.Peers) + 1) / 2 + 1
+
+	log.Println("majority", server.Conf.NumMajority)
 
 	configJson, err := json.MarshalIndent(server.Conf, "", "    ")
 	check(err)
@@ -102,13 +134,13 @@ func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
 }
 
 func (server *Server) PrintLogs(){
-	if len(self.StateParam.Logs) == 0{
+	if len(server.StateParam.Logs) == 0{
 		return
 	}
 
 	fmt.Println()
 	fmt.Println("Logs:")
-	for _, logEntry := range self.StateParam.Logs{
+	for _, logEntry := range server.StateParam.Logs{
 		fmt.Println(logEntry)
 	}
 	fmt.Println()

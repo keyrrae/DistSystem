@@ -3,10 +3,6 @@
   "max_attempts": 1000,
   "new_configuration": [
     {
-      "address": "127.0.0.1:1234",
-      "id": 1
-    },
-    {
       "address": "127.0.0.1:1235",
       "id": 2
     },

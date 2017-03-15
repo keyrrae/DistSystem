@@ -281,7 +281,10 @@ func checkAndUpdateLogs() {
 
 		self.StateParam.LastApplied = self.StateParam.CommitIndex
 	}
+
 	self.PrintLogs()
 	self.WriteToStorage()
-	log.Println("Tickets:", self.StateParam.RemainingTickets)
+	log.Println("AppliedIndex:", self.StateParam.LastApplied)
+	log.Println("CommitIndex :", self.StateParam.CommitIndex)
+	log.Println("Tickets     :", self.StateParam.RemainingTickets)
 }
