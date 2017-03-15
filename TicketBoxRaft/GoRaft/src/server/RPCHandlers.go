@@ -152,10 +152,8 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 	log.Println("received buy ticket from a client")
 
 	if self.LeaderID != self.Conf.ProcessID {
-		fmt.Println("peersmap", self.Conf.PeersMap)
 
 		leader := self.Conf.PeersMap[self.LeaderID]
-		fmt.Println("leader", leader)
 		leaderReply := new(BuyTicketReply)
 		err := leader.Comm.Call("DataCenterComm.BuyTicketHandler", req, &leaderReply)
 		if err != nil {
@@ -318,8 +316,8 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		reply.Success = (self.StateParam.Logs[req.PrevLogIndex].Term == req.PrevLogTerm)
 	}
 
-	log.Println("req.PrevLogIndex", req.PrevLogIndex)
-	log.Println("req.Entries", req.Entries)
+	//log.Println("req.PrevLogIndex", req.PrevLogIndex)
+	//log.Println("req.Entries", req.Entries)
 	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex+1+len(req.Entries); i++ {
 		logIndex := i - req.PrevLogIndex - 1
 		if len(self.StateParam.Logs)-1 < i {
@@ -334,7 +332,7 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 				//self.StateParam.Logs = append(self.StateParam.Logs[:i], req.Entries[logIndex])
 			}
 		}
-		log.Println(i, self.StateParam.Logs)
+		//log.Println(i, self.StateParam.Logs)
 	}
 
 	// If leaderCommit > commitIndex,
