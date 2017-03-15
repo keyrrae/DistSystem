@@ -2,7 +2,7 @@ package main
 
 import (
 	"time"
-	_ "fmt"
+	"fmt"
 	"log"
 	"encoding/json"
 	"io/ioutil"
@@ -99,6 +99,19 @@ func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
 	configJson, err := json.MarshalIndent(server.Conf, "", "    ")
 	check(err)
 	err = ioutil.WriteFile("./server_conf.json", configJson, 0755)
+}
+
+func (server *Server) PrintLogs(){
+	if len(self.StateParam.Logs) == 0{
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("Logs:")
+	for _, logEntry := range self.StateParam.Logs{
+		fmt.Println(logEntry)
+	}
+	fmt.Println()
 }
 
 func check(err error){

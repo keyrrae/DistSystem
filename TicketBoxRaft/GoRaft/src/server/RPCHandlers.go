@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
+	"errors"
 	"encoding/json"
 )
 
@@ -51,11 +51,15 @@ func (t *ClientComm) ChangeConfigHandler(req *ChangeConfigRequest, reply *Change
 	log.Println("received configuration change request from a client")
 
 	if self.LeaderID != self.Conf.ProcessID {
-		log.Println("learderID", self.LeaderID)
 		leader := self.Conf.PeersMap[self.LeaderID]
-		log.Println("leader", leader)
 
 		leaderReply := new(ChangeConfigReply)
+
+		if leader == nil || leader.Comm == nil {
+			reply.Success = false
+			return errors.New("No leader in the cluster yet")
+		}
+
 		err := leader.Comm.Call("DataCenterComm.ChangeConfigHandler", req, &leaderReply)
 		if err != nil {
 			leader.Comm = nil
@@ -89,7 +93,6 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 	if err != nil{
 		log.Println("parse log error")
 	}
-	log.Println("Servers", newConfig)
 
 	// Form a joint consensus configuration
 	addressMap := make(map[string]bool)
@@ -114,15 +117,21 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 
 	self.Conf.NumMajority = len(self.Conf.Peers) / 2 + 1
 
+	jointConfig, err := json.Marshal(self.Conf.Peers)
+	if err != nil{
+		log.Println("convert to json failed")
+	}
 	// append new config as an entry
-	logEntry := LogEntry{
+	jointConfigLogEntry := LogEntry{
 		Num:  0,
 		Term: self.StateParam.CurrentTerm,
 		IsConfigurationChange: true,
-		NewConfig: string(req.Servers),
+		NewConfig: string(jointConfig),
+
+		//NewConfig: string(req.Servers),
 	}
 
-	self.StateParam.Logs = append(self.StateParam.Logs, logEntry)
+	self.StateParam.Logs = append(self.StateParam.Logs, jointConfigLogEntry)
 
 	leaderBehavior()
 	for{
@@ -143,6 +152,30 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 			self.Conf.Peers = append(self.Conf.Peers[:i],
 				self.Conf.Peers[i+1:]...)
 		}
+	}
+
+	self.Conf.NumMajority = len(self.Conf.Peers) / 2 + 1
+
+	newConf, err := json.Marshal(self.Conf.Peers)
+
+	// append new config as an entry
+	newConfigLogEntry := LogEntry{
+		Num:  0,
+		Term: self.StateParam.CurrentTerm,
+		IsConfigurationChange: true,
+		NewConfig: string(newConf),
+
+		//NewConfig: string(req.Servers),
+	}
+
+	self.StateParam.Logs = append(self.StateParam.Logs, newConfigLogEntry)
+
+	leaderBehavior()
+	for{
+		if self.StateParam.CommitIndex == self.StateParam.LastApplied{
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	reply.Success = true
