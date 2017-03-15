@@ -9,7 +9,7 @@ import (
 
 func runStateMachine() {
 	for {
-		log.Println(self.State)
+		log.Println("Role:", self.State)
 		switch self.State {
 		case FOLLOWER:
 			followerBehavior()
@@ -36,8 +36,6 @@ func followerBehavior() {
 	}
 
 	checkAndUpdateLogs()
-	log.Println(self.StateParam.CommitIndex)
-	log.Println(self.StateParam.RemainingTickets)
 }
 
 func startElection() {
@@ -64,8 +62,6 @@ func startElection() {
 				Term:         self.StateParam.CurrentTerm,
 				CandidateId:  self.Conf.ProcessID,
 				LastLogIndex: self.StateParam.LastApplied,
-
-				// TODO: last candidate's log's term
 				LastLogTerm: 0,
 			}
 
@@ -77,7 +73,7 @@ func startElection() {
 			requestVoteReply := new(RequestVoteReply)
 
 			if peer.Comm == nil {
-				fmt.Println("client == nil")
+				return
 			}
 
 			err := peer.Comm.Call("DataCenterComm.RequestVoteHandler", requestVoteRequest, &requestVoteReply)
@@ -89,7 +85,7 @@ func startElection() {
 
 			if requestVoteReply.VoteGranted {
 				self.GotNumVotes++
-				log.Printf("GotNumVotes: %v", self.GotNumVotes)
+				log.Printf("Received %v votes", self.GotNumVotes)
 			} else {
 				self.ChangeState(FOLLOWER)
 				self.StateParam.CurrentTerm = requestVoteReply.Term
@@ -109,20 +105,7 @@ func startElection() {
 		if leaderGranted{
 			self.ChangeState(LEADER)
 		}
-		
-		/*
-		nextIndex[]
-		
-		for each server, index of the next log entry
-		to send to that server (initialized to leader
-		last log index + 1)
-		
-		matchIndex[]
-		
-		for each server, index of highest log entry
-		known to be replicated on server
-		(initialized to 0, increases monotonically)
-		*/
+
 	}()
 }
 
@@ -163,7 +146,6 @@ func candidateBehavior() {
 
 func leaderBehavior() {
 
-	// TODO: If command received from client: append entry to local log,
 	// respond after entry applied to state machine (§5.3)
 	// Handled in ClientRPC handler
 
@@ -184,7 +166,6 @@ func leaderBehavior() {
 func updateCommitIndex() {
 	matchIndexMap := make(map[int]int) // <matchIndex, count>
 	for _, peer := range self.Conf.Peers {
-		fmt.Println(peer)
 		matchIndex := peer.MatchedIndex
 		if matchIndex < 0 {
 			continue
@@ -195,8 +176,6 @@ func updateCommitIndex() {
 			matchIndexMap[matchIndex] = 1
 		}
 	}
-	fmt.Println("matchIndexMap", matchIndexMap)
-	fmt.Println("commit index", self.StateParam.CommitIndex)
 
 	for k, v := range matchIndexMap {
 		if v + 1 >= self.Conf.NumMajority {
@@ -208,7 +187,6 @@ func updateCommitIndex() {
 		}
 	}
 
-	fmt.Println("commit index", self.StateParam.CommitIndex)
 }
 
 func sendAppendEntriesToAll() {
@@ -216,10 +194,7 @@ func sendAppendEntriesToAll() {
 	done := make(chan bool, len(self.Conf.Peers))
 
 	for _, peer := range self.Conf.Peers {
-		log.Println("peer.MatchedIndex", peer.MatchedIndex)
-
 		if !tryEstablishConnection(peer) {
-
 			done <- true
 			continue
 		}
@@ -227,11 +202,9 @@ func sendAppendEntriesToAll() {
 		// Send an append entry rpc to peer
 		go sendAppendEntriesToPeer(peer, done)
 	}
-	log.Println("sent to all")
 	for i := 0; i < len(self.Conf.Peers); i++ {
 		<-done
 	}
-	log.Println("reached here")
 
 }
 
@@ -244,11 +217,6 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 		PrevLogIndex: peer.MatchedIndex,
 		LeaderCommit: self.StateParam.CommitIndex,
 	}
-
-	// TODO: update appendEntriesRequest.Entries according to peer condition
-
-	//leaderLastCommitIndex := self.StateParam.CommitIndex
-	fmt.Println(appendEntriesRequest)
 
 	if len(self.StateParam.Logs) > 0 {
 		if peer.MatchedIndex >= 0 {
@@ -268,8 +236,6 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 
 	appendEntriesReply := new(AppendEntriesReply)
 
-	fmt.Println(appendEntriesRequest)
-
 	err := peer.Comm.Call("DataCenterComm.AppendEntriesHandler",
 		appendEntriesRequest, &appendEntriesReply)
 	if err != nil {
@@ -280,7 +246,6 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 		return
 	}
 
-	fmt.Println(*appendEntriesReply)
 	if appendEntriesReply.Success {
 		// If successful: update nextIndex and matchIndex for follower (§5.3)
 		peer.MatchedIndex = len(self.StateParam.Logs) - 1
@@ -307,11 +272,8 @@ func sendAppendEntriesToPeer(peer *Peer, done chan<- bool) {
 
 func checkAndUpdateLogs() {
 	// If commitIndex > lastApplied: increment lastApplied,
-	fmt.Println("Term", self.StateParam.CurrentTerm)
 
-	fmt.Println("commitIndex", self.StateParam.CommitIndex )
-	fmt.Println("lastApplied", self.StateParam.LastApplied )
-	
+
 	if self.StateParam.CommitIndex > self.StateParam.LastApplied {
 		// apply log[lastApplied] to state machine (§5.3)
 
@@ -319,6 +281,7 @@ func checkAndUpdateLogs() {
 
 		self.StateParam.LastApplied = self.StateParam.CommitIndex
 	}
-	fmt.Println(self.StateParam.Logs)
+	self.PrintLogs()
 	self.WriteToStorage()
+	log.Println("Tickets:", self.StateParam.RemainingTickets)
 }
