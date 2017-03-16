@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"time"
 	"fmt"
 	"log"
@@ -65,6 +66,23 @@ func (server *Server) ApplyLogsToStateMachine() {
 			server.UpdateConfigAndWriteToStorage(server.StateParam.Logs[i].NewConfig)
 		}
 	}
+	server.CheckIfShouldStepDown()
+}
+
+func (server *Server) CheckIfShouldStepDown(){
+	shouldStay := false
+
+	for _, peer := range server.Conf.Servers {
+		if peer.Address == server.Conf.MyAddress {
+			shouldStay = true
+		}
+	}
+
+	if !shouldStay {
+		log.Println("Follower not in the new Configuration")
+		log.Println("Stepping down....")
+		os.Exit(0)
+	}
 }
 
 func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
@@ -83,26 +101,6 @@ func (server *Server) UpdateConfigAndWriteToStorage(confStr string){
 		}
 		server.Conf.Servers = append(server.Conf.Servers, &newServer)
 	}
-	/*
-	oldConfigAddressMap := make(map[string]bool)
-	for _, serverFromOldConfig := range server.Conf.Servers{
-		oldConfigAddressMap[serverFromOldConfig.Address] = true
-	}
-
-	for _, peer := range newConfig{
-		if _, ok := oldConfigAddressMap[peer.Address]; !ok {
-			newServer := Peer{
-				Address: peer.Address,
-				ProcessId: peer.ProcessId,
-			}
-			server.Conf.Servers = append(server.Conf.Servers, &newServer)
-		}
-	}
-
-	newConfigAddressMap := make(map[string]bool)
-	for _, serverFromNewConfig := range newConfig{
-		newConfigAddressMap[serverFromNewConfig.Address] = true
-	}*/
 
 	server.Conf.Peers = server.Conf.Peers[:0]
 	for _, peer := range server.Conf.Servers {

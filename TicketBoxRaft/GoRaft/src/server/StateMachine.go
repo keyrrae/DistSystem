@@ -10,6 +10,8 @@ import (
 func runStateMachine() {
 	for {
 		log.Println("Role:", self.State)
+		log.Println("Term:", self.StateParam.CurrentTerm)
+
 		switch self.State {
 		case FOLLOWER:
 			followerBehavior()
@@ -61,7 +63,6 @@ func startElection() {
 			requestVoteRequest := RequestVoteRequest{
 				Term:         self.StateParam.CurrentTerm,
 				CandidateId:  self.Conf.ProcessID,
-				LastLogIndex: self.StateParam.LastApplied,
 				LastLogTerm: 0,
 			}
 
@@ -69,6 +70,10 @@ func startElection() {
 			if lenOfLogs > 0 {
 				requestVoteRequest.LastLogTerm = self.StateParam.Logs[lenOfLogs-1].Term
 			}
+
+			requestVoteRequest.LastLogIndex = lenOfLogs - 1
+
+			log.Println("requestVoteRequest:", requestVoteRequest)
 
 			requestVoteReply := new(RequestVoteReply)
 
@@ -83,9 +88,12 @@ func startElection() {
 				return
 			}
 
+			log.Println("requestVoteReply:", requestVoteReply)
+
 			if requestVoteReply.VoteGranted {
 				self.GotNumVotes++
 				log.Printf("Received %v votes", self.GotNumVotes)
+				log.Println("majority", self.Conf.NumMajority)
 			} else {
 				self.ChangeState(FOLLOWER)
 				self.StateParam.CurrentTerm = requestVoteReply.Term

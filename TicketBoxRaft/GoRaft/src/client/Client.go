@@ -123,6 +123,7 @@ func changeConfig(servers []Peer) {
 	reply := new(ChangeConfigReply)
 	err = rpcClient.Call("ClientComm.ChangeConfigHandler", args, &reply)
 	if err != nil {
+		log.Println(err)
 		rpcClient = tryToConnectToServer("tcp", server)
 	}
 
