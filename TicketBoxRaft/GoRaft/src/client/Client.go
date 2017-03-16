@@ -3,18 +3,22 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"gopkg.in/square/go-jose.v1/json"
 	"log"
 	"net/rpc"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	"gopkg.in/square/go-jose.v1/json"
 )
 
 func printUsage() {
 	fmt.Println("To buy tickets, enter:  buy/b [amount of tickets]")
 	fmt.Println("e.g    buy 5")
+	fmt.Println()
+	fmt.Println("To show the datacener status: show")
+	fmt.Println()
+	fmt.Println("To change cluster configuration: change [dc1] [dc2] ...")
 	fmt.Println()
 	fmt.Println("To exit, enter: e/exit/q/quit")
 	fmt.Println()
@@ -26,7 +30,7 @@ func handleUserInput(command string) {
 	// Parse a command from user
 	tokens := strings.Fields(command)
 
-	if len(tokens) == 0 || len(tokens) > 2 {
+	if len(tokens) == 0 {
 		return
 	}
 
@@ -38,6 +42,8 @@ func handleUserInput(command string) {
 				fallthrough
 			case "help":
 				printUsage()
+			case "show":
+				showStatus()
 			case "c":
 				servers := server.NewConfig
 				changeConfig(servers)
@@ -67,10 +73,27 @@ func handleUserInput(command string) {
 				log.Print("Sent BUY TICKET request to the data center.")
 				log.Print("Waiting for the datacenter's reply....")
 				buyTicket(int(amount))
+			case "c":
+				fallthrough
+			case "change":
+				confChange(tokens[1:])
 			default:
 				printUsage()
 			}
 
+		}
+	default:
+		{
+			fmt.Println("change")
+
+			switch tokens[0] {
+			case "c":
+				fallthrough
+			case "change":
+				confChange(tokens[1:])
+			default:
+				printUsage()
+			}
 		}
 
 	}
@@ -83,6 +106,22 @@ type BuyTicketRequest struct {
 type BuyTicketReply struct {
 	Success bool
 	Remains int
+}
+
+func confChange(tokens []string) {
+	fmt.Println(tokens)
+	var newConf []Peer
+
+	for _, token := range tokens{
+		if val, ok := ConfigMap[token]; ok {
+			newConf = append(newConf, val)
+		} else {
+			fmt.Println("Wrong data center name!")
+			return
+		}
+	}
+	fmt.Println(newConf)
+	changeConfig(newConf)
 }
 
 func buyTicket(amount int) {
@@ -133,6 +172,47 @@ func changeConfig(servers []Peer) {
 		fmt.Println("Configuration change failed")
 	}
 	//fmt.Println("Remaining tickets:", reply.Remains)
+}
+
+type ShowStatusRequest struct {
+}
+
+type ShowStatusReply struct {
+	NumTickets int
+	Logs       []LogEntry
+}
+
+type LogEntry struct {
+	Num                   int `json:"value"`
+	Term                  int `json:"term"`
+	IsConfigurationChange bool
+	NewConfig             string
+}
+
+func showStatus() {
+
+	args := ShowStatusRequest{}
+	reply := new(ShowStatusReply)
+	err := rpcClient.Call("ClientComm.ShowStatusHandler", args, &reply)
+	if err != nil {
+		log.Println(err)
+		rpcClient = tryToConnectToServer("tcp", server)
+	}
+
+	fmt.Println("Remaining Tickets:", reply.NumTickets)
+	if len(reply.Logs) == 0 {
+		fmt.Println("[]")
+	} else {
+		for _, log := range reply.Logs {
+			jsonlog, err := json.Marshal(log)
+			if err != nil {
+				fmt.Println("Parsing log error")
+				fmt.Println(err)
+				return
+			}
+			fmt.Println(string(jsonlog))
+		}
+	}
 }
 
 func waitUserInput() {
