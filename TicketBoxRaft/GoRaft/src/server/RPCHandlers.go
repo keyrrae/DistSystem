@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"log"
 	"time"
 	"errors"
@@ -102,7 +103,26 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 		addressMap[oldPeer.Address] = true
 	}
 
+	var jointConfig []Peer
+
+	jointConfig = append(jointConfig, Peer{Address:self.Conf.MyAddress, ProcessId:self.Conf.ProcessID})
+
+	for _, peer := range self.Conf.Peers {
+		newPeer := Peer{
+			Address:peer.Address,
+			ProcessId: peer.ProcessId,
+			MatchedIndex: -1,
+			NextIndex: 0,
+		}
+		jointConfig = append(jointConfig, newPeer)
+	}
+
+
+    shouldStay := false
 	for _, peer := range newConfig{
+		if peer.Address == self.Conf.MyAddress{
+			shouldStay = true
+		}
 		if _, ok := addressMap[peer.Address]; !ok {
 			newPeer := Peer{
 				Address:peer.Address,
@@ -111,22 +131,24 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 				NextIndex: 0,
 			}
 			self.Conf.Peers = append(self.Conf.Peers, &newPeer)
+			jointConfig = append(jointConfig, newPeer)
 			addressMap[peer.Address] = true
 		}
 	}
 
 	self.Conf.NumMajority = len(self.Conf.Peers) / 2 + 1
 
-	jointConfig, err := json.Marshal(self.Conf.Peers)
 	if err != nil{
 		log.Println("convert to json failed")
 	}
+
+	jointConfigJson, err := json.Marshal(jointConfig)
 	// append new config as an entry
 	jointConfigLogEntry := LogEntry{
 		Num:  0,
 		Term: self.StateParam.CurrentTerm,
 		IsConfigurationChange: true,
-		NewConfig: string(jointConfig),
+		NewConfig: string(jointConfigJson),
 
 		//NewConfig: string(req.Servers),
 	}
@@ -154,16 +176,16 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 		}
 	}
 
-	self.Conf.NumMajority = len(self.Conf.Peers) / 2 + 1
+	self.Conf.NumMajority = ( len(self.Conf.Peers) + 1 ) / 2 + 1
 
-	newConf, err := json.Marshal(self.Conf.Peers)
+	//newConf, err := json.Marshal(req.Servers)
 
 	// append new config as an entry
 	newConfigLogEntry := LogEntry{
 		Num:  0,
 		Term: self.StateParam.CurrentTerm,
 		IsConfigurationChange: true,
-		NewConfig: string(newConf),
+		NewConfig: string(req.Servers),
 
 		//NewConfig: string(req.Servers),
 	}
@@ -179,6 +201,12 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 	}
 
 	reply.Success = true
+
+	if !shouldStay{
+		log.Println("Leader not in the new Configuration")
+		log.Println("Stepping down....")
+		os.Exit(0)
+	}
 }
 
 func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketReply) error {
@@ -188,6 +216,12 @@ func (t *ClientComm) BuyTicketHandler(req *BuyTicketRequest, reply *BuyTicketRep
 
 		leader := self.Conf.PeersMap[self.LeaderID]
 		leaderReply := new(BuyTicketReply)
+
+		if leader == nil || leader.Comm == nil {
+			reply.Success = false
+			return errors.New("No leader in the cluster yet")
+		}
+
 		err := leader.Comm.Call("DataCenterComm.BuyTicketHandler", req, &leaderReply)
 		if err != nil {
 			leader.Comm = nil
@@ -253,14 +287,41 @@ func (t *DataCenterComm) RequestVoteHandler(req *RequestVoteRequest,
 		return nil
 	}
 
+	if req.Term > self.StateParam.CurrentTerm{
+		//reply.VoteGranted = true
+		//reply.Term = self.StateParam.CurrentTerm
+		self.StateParam.VotedFor = -1
+		self.StateParam.CurrentTerm = req.Term
+		if self.State == LEADER {
+			self.ChangeState(FOLLOWER)
+		} else if self.State == CANDIDATE {
+			self.ChangeState(FOLLOWER)
+		}
+	}
+
 	correctID := (self.StateParam.VotedFor == -1 ||
 		self.StateParam.VotedFor == req.CandidateId)
 
-	satisfactoryTerm := (req.Term >= self.StateParam.CurrentTerm)
-	if correctID && satisfactoryTerm {
+	myLastIndex := len(self.StateParam.Logs) - 1
+	satisfactoryLogIndex := (req.LastLogIndex >= myLastIndex)
+
+	myLastTerm := 0
+	if myLastIndex >= 0 {
+		myLastTerm = self.StateParam.Logs[myLastIndex].Term
+	}
+	satisfactoryLogTerm := (req.LastLogTerm >= myLastTerm)
+
+	log.Println("term", req.LastLogTerm, myLastTerm)
+
+	log.Println("conditions", correctID, satisfactoryLogIndex, satisfactoryLogTerm)
+
+	if correctID && satisfactoryLogIndex && satisfactoryLogTerm {
 		reply.VoteGranted = true
 		reply.Term = self.StateParam.CurrentTerm
 		self.StateParam.VotedFor = req.CandidateId
+	} else {
+		reply.VoteGranted = false
+		reply.Term = self.StateParam.CurrentTerm
 	}
 
 	return nil
@@ -313,6 +374,7 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		self.ChangeState(FOLLOWER)
 		self.ResetHeartbeat()
 		self.SetLeaderID(req.LeaderId)
+		self.StateParam.CurrentTerm = req.Term
 	}
 
 	if self.State == FOLLOWER {
@@ -349,8 +411,6 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 		reply.Success = (self.StateParam.Logs[req.PrevLogIndex].Term == req.PrevLogTerm)
 	}
 
-	//log.Println("req.PrevLogIndex", req.PrevLogIndex)
-	//log.Println("req.Entries", req.Entries)
 	for i := req.PrevLogIndex + 1; i < req.PrevLogIndex+1+len(req.Entries); i++ {
 		logIndex := i - req.PrevLogIndex - 1
 		if len(self.StateParam.Logs)-1 < i {
@@ -365,7 +425,6 @@ func (t *DataCenterComm) AppendEntriesHandler(req *AppendEntriesRequest,
 				//self.StateParam.Logs = append(self.StateParam.Logs[:i], req.Entries[logIndex])
 			}
 		}
-		//log.Println(i, self.StateParam.Logs)
 	}
 
 	// If leaderCommit > commitIndex,
