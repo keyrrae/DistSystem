@@ -14,6 +14,7 @@ type StateParameters struct {
 	RemainingTickets	int 	`json:"ticket_number"`
 	CommitIndex int
 	LastApplied int
+	IsChangingConfig bool
 }
 
 type LogEntry struct {

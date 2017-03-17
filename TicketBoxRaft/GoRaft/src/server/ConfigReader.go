@@ -22,6 +22,7 @@ type Config struct {
 	NumMajority      int
 	Peers			 []*Peer
 	PeersMap         map[int]*Peer
+	PeersAddressMap  map[string]*Peer
 }
 
 type Peer struct {
@@ -64,9 +65,11 @@ func ReadConfig() Config {
 	}
 
 	conf.PeersMap = make(map[int]*Peer)
+	conf.PeersAddressMap = make(map[string]*Peer)
 
 	for _, peer := range conf.Peers {
 		conf.PeersMap[peer.ProcessId] = peer
+		conf.PeersAddressMap[peer.Address] = peer
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())

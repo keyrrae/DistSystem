@@ -153,6 +153,9 @@ func candidateBehavior() {
 }
 
 func leaderBehavior() {
+	if self.StateParam.IsChangingConfig {
+		return
+	}
 
 	// respond after entry applied to state machine (§5.3)
 	// Handled in ClientRPC handler
@@ -164,6 +167,25 @@ func leaderBehavior() {
 	// set commitIndex = N (§5.3, §5.4).
 
 	updateCommitIndex()
+
+	// If commitIndex > lastApplied: increment lastApplied, apply
+	// log[lastApplied] to state machine (§5.3)
+
+	checkAndUpdateLogs()
+}
+
+func configChangeBehavior(oldAddressMap map[string]bool, newAddressMap map[string]bool) {
+
+	// respond after entry applied to state machine (§5.3)
+	// Handled in ClientRPC handler
+
+	sendAppendEntriesToAll()
+
+	// If there exists an N such that N > commitIndex, a majority
+	// of matchIndex[i] ≥ N, and log[N].term == currentTerm:
+	// set commitIndex = N (§5.3, §5.4).
+
+	checkMajorityInTwoConfigs(oldAddressMap, newAddressMap)
 
 	// If commitIndex > lastApplied: increment lastApplied, apply
 	// log[lastApplied] to state machine (§5.3)
@@ -194,7 +216,70 @@ func updateCommitIndex() {
 			}
 		}
 	}
+}
 
+func checkMajorityInTwoConfigs(oldAddressMap map[string]bool, newAddressMap map[string]bool) {
+	log.Println("self.StateParam.CommitIndex",self.StateParam.CommitIndex)
+
+	oldConfigCommitIndex := checkMajorityInConfig(oldAddressMap)
+	log.Println("oldConfigCommitIndex",oldConfigCommitIndex)
+
+	newConfigCommitIndex := checkMajorityInConfig(newAddressMap)
+	log.Println("newConfigCommitIndex",newConfigCommitIndex)
+
+	self.StateParam.CommitIndex = min(oldConfigCommitIndex, newConfigCommitIndex)
+	log.Println("self.StateParam.CommitIndex",self.StateParam.CommitIndex)
+
+}
+
+func checkMajorityInConfig(addressMap map[string] bool) int {
+
+	res := self.StateParam.CommitIndex
+	if addressMap == nil {
+		return res
+	}
+
+	log.Println("addressMap", addressMap)
+
+	matchIndexMap := make(map[int]int) // <matchIndex, count>
+	for address := range addressMap {
+		peer := self.Conf.PeersAddressMap[address]
+		if peer == nil{
+			continue
+		}
+		matchIndex := peer.MatchedIndex
+		log.Println("Address", address)
+		log.Println("matchIndex", matchIndex)
+
+		if matchIndex < 0 {
+			continue
+		}
+		if _, ok := matchIndexMap[matchIndex]; ok {
+			matchIndexMap[matchIndex]++
+		} else {
+			matchIndexMap[matchIndex] = 1
+		}
+	}
+
+	log.Println("matchIndexMap", matchIndexMap)
+
+	majority := len(addressMap) /  2 + 1
+	if _, ok := addressMap[self.Conf.MyAddress]; ok {
+		majority -= 1
+	}
+
+	log.Println("majority", majority)
+
+	for k, v := range matchIndexMap {
+		if v >= majority {
+			for i := self.StateParam.CommitIndex + 1; i <= k; i++ {
+				if self.StateParam.Logs[i].Term == self.StateParam.CurrentTerm {
+					res = k
+				}
+			}
+		}
+	}
+	return res
 }
 
 func sendAppendEntriesToAll() {
