@@ -56,11 +56,18 @@ func (t *DataCenterComm) ChangeConfigHandler(req *ChangeConfigRequest, reply *Ch
 }
 
 func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigReply) {
+	self.StateParam.IsChangingConfig = true
 	var newConfig []Peer
 
 	err := json.Unmarshal(req.Servers, &newConfig)
 	if err != nil{
 		log.Println("parse log error")
+	}
+
+	newAddressMap := make(map[string]bool)
+
+	for _, peer := range newConfig {
+		newAddressMap[peer.Address] = true
 	}
 
 	// Form a joint consensus configuration
@@ -71,10 +78,19 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 		addressMap[oldPeer.Address] = true
 	}
 
+	oldAddressMap := make(map[string]bool)
+	oldAddressMap[self.Conf.MyAddress] = true
+	for _, oldPeer := range self.Conf.Peers{
+		oldAddressMap[oldPeer.Address] = true
+	}
+
 	var jointConfig []Peer
 
 	jointConfig = append(jointConfig, Peer{Address:self.Conf.MyAddress, ProcessId:self.Conf.ProcessID})
 
+
+	self.Conf.PeersMap = make(map[int]*Peer)
+	self.Conf.PeersAddressMap = make(map[string]*Peer)
 	for _, peer := range self.Conf.Peers {
 		newPeer := Peer{
 			Address:peer.Address,
@@ -83,8 +99,10 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 			NextIndex: 0,
 		}
 		jointConfig = append(jointConfig, newPeer)
-	}
+		self.Conf.PeersMap[peer.ProcessId] = peer
+		self.Conf.PeersAddressMap[peer.Address] = peer
 
+	}
 
 	shouldStay := false
 	for _, peer := range newConfig{
@@ -100,15 +118,18 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 			}
 			self.Conf.Peers = append(self.Conf.Peers, &newPeer)
 			jointConfig = append(jointConfig, newPeer)
+			self.Conf.PeersMap[peer.ProcessId] = &newPeer
+			self.Conf.PeersAddressMap[peer.Address] = &newPeer
 			addressMap[peer.Address] = true
 		}
 	}
 
-	self.Conf.NumMajority = len(self.Conf.Peers) / 2 + 1
+	//self.Conf.NumMajority = len(self.Conf.Peers) / 2 + 1
 
 	if err != nil{
 		log.Println("convert to json failed")
 	}
+
 
 	jointConfigJson, err := json.Marshal(jointConfig)
 	// append new config as an entry
@@ -117,21 +138,25 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 		Term: self.StateParam.CurrentTerm,
 		IsConfigurationChange: true,
 		NewConfig: string(jointConfigJson),
-
-		//NewConfig: string(req.Servers),
 	}
 
 	self.StateParam.Logs = append(self.StateParam.Logs, jointConfigLogEntry)
+	self.StateParam.LastApplied++
 
-	leaderBehavior()
 	for{
+		configChangeBehavior(oldAddressMap, newAddressMap)
 		if self.StateParam.CommitIndex == self.StateParam.LastApplied{
 			break
+		} else {
+			time.Sleep(1000 * time.Millisecond)
 		}
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Change to new configuration
+
+	self.Conf.PeersMap = make(map[int]*Peer)
+	self.Conf.PeersAddressMap = make(map[string]*Peer)
+
 	newConfigAddressMap := make(map[string]bool)
 	for _, serverFromNewConfig := range newConfig{
 		newConfigAddressMap[serverFromNewConfig.Address] = true
@@ -144,9 +169,14 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 		}
 	}
 
-	self.Conf.NumMajority = ( len(self.Conf.Peers) + 1 ) / 2 + 1
+	for _, peer := range self.Conf.Peers {
+		self.Conf.PeersMap[peer.ProcessId] = peer
+		self.Conf.PeersAddressMap[peer.Address] = peer
+	}
 
-	//newConf, err := json.Marshal(req.Servers)
+	log.Println("peer after config change", self.Conf.Peers)
+
+	self.Conf.NumMajority = ( len(self.Conf.Peers) + 1 ) / 2 + 1
 
 	// append new config as an entry
 	newConfigLogEntry := LogEntry{
@@ -154,21 +184,22 @@ func performConfigurationChange(req *ChangeConfigRequest, reply *ChangeConfigRep
 		Term: self.StateParam.CurrentTerm,
 		IsConfigurationChange: true,
 		NewConfig: string(req.Servers),
-
-		//NewConfig: string(req.Servers),
 	}
 
 	self.StateParam.Logs = append(self.StateParam.Logs, newConfigLogEntry)
 
-	leaderBehavior()
 	for{
+		configChangeBehavior(nil, newAddressMap)
+
 		if self.StateParam.CommitIndex == self.StateParam.LastApplied{
 			break
+		} else {
+			time.Sleep(1000 * time.Millisecond)
 		}
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	reply.Success = true
+	self.StateParam.IsChangingConfig = false
 
 	if !shouldStay{
 		log.Println("Leader not in the new Configuration")

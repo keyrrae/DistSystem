@@ -66,7 +66,6 @@ func (server *Server) ApplyLogsToStateMachine() {
 			server.UpdateConfigAndWriteToStorage(server.StateParam.Logs[i].NewConfig)
 		}
 	}
-	server.CheckIfShouldStepDown()
 }
 
 func (server *Server) CheckIfShouldStepDown(){
